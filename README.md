@@ -1,40 +1,53 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/pages/api-reference/create-next-app).
+# Doclane Frontend
 
-## Getting Started
+Next.js reader UI for Doclane. API calls go through `/api/backend/*`, which is rewritten to the configured backend origin.
 
-First, run the development server:
+## Requirements
+
+- Node.js 22
+- pnpm
+- Doclane backend API
+
+## Environment
+
+Copy `.env.example` to `.env` and set the backend origin.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+For local development, `BACKEND_ORIGIN` should point to the backend API, for example `http://localhost:3000`.
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+## Local Development
 
-[API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+```bash
+pnpm install
+pnpm dev
+```
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/pages/building-your-application/routing/api-routes) instead of React pages.
+## Dockerfile
 
-This project uses [`next/font`](https://nextjs.org/docs/pages/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Build the frontend image:
 
-## Learn More
+```bash
+docker build --build-arg BACKEND_ORIGIN=http://host.docker.internal:3000 -t doclane-frontend .
+```
 
-To learn more about Next.js, take a look at the following resources:
+Run the frontend container:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn-pages-router) - an interactive Next.js tutorial.
+```bash
+docker run --rm -p 3001:3000 \
+  -e BACKEND_ORIGIN="http://host.docker.internal:3000" \
+  doclane-frontend
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The frontend is exposed at `localhost:3001` and expects the backend API at `host.docker.internal:3000`.
 
-## Deploy on Vercel
+## Verification
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+After frontend changes, run:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/pages/building-your-application/deploying) for more details.
+```bash
+pnpm lint
+pnpm build
+```
