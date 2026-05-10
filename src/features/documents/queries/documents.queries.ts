@@ -60,7 +60,7 @@ export function isDocumentProcessing(status: DocumentStatusResponse["status"]) {
 export function isDocumentOcrProcessing(
   ocrStatus: DocumentStatusResponse["ocrStatus"],
 ) {
-  return ocrStatus === "PENDING" || ocrStatus === "PROCESSING";
+  return ocrStatus === "PROCESSING";
 }
 
 const ongoingJobStatuses = new Set<DocumentJobStatus>([
