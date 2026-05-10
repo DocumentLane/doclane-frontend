@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import type { PdfOutlineItem } from "../hooks/use-pdf-outline";
 import { PdfOutlineList } from "./pdf-outline-list";
 
-type ThumbnailRailTab = "pages" | "bookmarks" | "outline";
+type ThumbnailRailTab = "pages" | "outline" | "notes" | "bookmarks";
 
 interface PdfThumbnailRailProps {
   pdfDocument: PDFDocumentProxy | null;
@@ -197,11 +197,13 @@ export function PdfThumbnailRail({
   }
 
   const pageNumbers =
-    activeTab === "bookmarks"
-      ? bookmarkedPages
-      : activeTab === "pages" && pdfDocument
-        ? Array.from({ length: pdfDocument.numPages }, (_, index) => index + 1)
-        : [];
+    activeTab === "pages" && pdfDocument
+      ? Array.from({ length: pdfDocument.numPages }, (_, index) => index + 1)
+      : activeTab === "notes"
+        ? notedPages
+        : activeTab === "bookmarks"
+          ? bookmarkedPages
+          : [];
 
   const handleResizeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -243,7 +245,7 @@ export function PdfThumbnailRail({
           <div
             role="tablist"
             aria-label="Page rail views"
-            className="grid grid-cols-3 gap-1"
+            className="grid grid-cols-2 gap-1"
           >
             <button
               type="button"
@@ -272,6 +274,20 @@ export function PdfThumbnailRail({
               onClick={() => setActiveTab("outline")}
             >
               Outline
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "notes"}
+              className={cn(
+                "flex h-8 items-center justify-center gap-1 rounded-sm px-2 text-xs font-semibold transition",
+                activeTab === "notes"
+                  ? "bg-secondary text-secondary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+              onClick={() => setActiveTab("notes")}
+            >
+              Notes
             </button>
             <button
               type="button"
@@ -306,17 +322,21 @@ export function PdfThumbnailRail({
           ) : (
             <div className="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-2">
               {pdfDocument && pageNumbers.length > 0 ? (
-              pageNumbers.map((pageNumber) => (
-                <PdfThumbnail
-                  key={pageNumber}
-                  pdfDocument={pdfDocument}
-                  pageNumber={pageNumber}
-                  isActive={pageNumber === currentPage}
-                  isBookmarked={bookmarkedPages.includes(pageNumber)}
-                  hasNote={notedPages.includes(pageNumber)}
-                  onPageChange={onPageChange}
-                />
-              ))
+                pageNumbers.map((pageNumber) => (
+                  <PdfThumbnail
+                    key={pageNumber}
+                    pdfDocument={pdfDocument}
+                    pageNumber={pageNumber}
+                    isActive={pageNumber === currentPage}
+                    isBookmarked={bookmarkedPages.includes(pageNumber)}
+                    hasNote={notedPages.includes(pageNumber)}
+                    onPageChange={onPageChange}
+                  />
+                ))
+              ) : pdfDocument && activeTab === "notes" ? (
+                <p className="col-span-full px-2 py-3 text-xs text-muted-foreground">
+                  No noted pages
+                </p>
               ) : pdfDocument && activeTab === "bookmarks" ? (
                 <p className="col-span-full px-2 py-3 text-xs text-muted-foreground">
                   No saved pages
