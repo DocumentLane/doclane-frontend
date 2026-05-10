@@ -117,7 +117,7 @@ export function PdfReaderWorkspace({
     title,
     originalFileName,
     currentPage,
-    shouldLoadNotes: isNotesPanelOpen || isMobilePageListOpen,
+    shouldLoadNotes: isSidebarOpen || isNotesPanelOpen || isMobilePageListOpen,
   });
 
   useScreenWakeLock(isReady);
