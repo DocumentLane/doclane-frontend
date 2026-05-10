@@ -1,12 +1,5 @@
-import { useState } from "react";
-import {
-  CheckIcon,
-  PencilIcon,
-  PlusIcon,
-  SaveIcon,
-  ShieldIcon,
-  UsersIcon,
-} from "lucide-react";
+import { type ReactNode, useState } from "react";
+import { CheckIcon, PencilIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,8 +41,6 @@ import {
 } from "@/features/users/queries/users.queries";
 import type { UserItem } from "@/features/users/types/user.types";
 
-type AdminTab = "users" | "groups";
-
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Please try again.";
 }
@@ -70,7 +61,25 @@ function getGroupLabel(group: Pick<GroupItem, "externalId" | "displayName">) {
 }
 
 export function AdminPage() {
-  const [activeTab, setActiveTab] = useState<AdminTab>("users");
+  return (
+    <AdminSectionPage
+      title="Users"
+      description="Manage OIDC-backed users, application roles, and group membership."
+    >
+      <UsersAdminPanel />
+    </AdminSectionPage>
+  );
+}
+
+export function AdminSectionPage({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
   const meQuery = useMeQuery();
   const isAdmin = meQuery.data?.role === "ADMIN";
 
@@ -79,9 +88,9 @@ export function AdminPage() {
       <main className="flex w-full flex-col gap-6 p-6">
         <Card>
           <CardHeader>
-            <CardTitle>Admin</CardTitle>
+            <CardTitle>{title}</CardTitle>
             <CardDescription>
-              Only ADMIN users can manage users and groups.
+              Only ADMIN users can manage users, groups, and audit logs.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -92,37 +101,18 @@ export function AdminPage() {
   return (
     <main className="flex w-full flex-col gap-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage OIDC-backed users, application roles, and group metadata.
+          {description}
         </p>
       </div>
 
-      <div className="flex w-fit rounded-lg border bg-background p-1">
-        <Button
-          type="button"
-          variant={activeTab === "users" ? "secondary" : "ghost"}
-          onClick={() => setActiveTab("users")}
-        >
-          <UsersIcon />
-          Users
-        </Button>
-        <Button
-          type="button"
-          variant={activeTab === "groups" ? "secondary" : "ghost"}
-          onClick={() => setActiveTab("groups")}
-        >
-          <ShieldIcon />
-          Groups
-        </Button>
-      </div>
-
-      {activeTab === "users" ? <UsersAdminPanel /> : <GroupsAdminPanel />}
+      {children}
     </main>
   );
 }
 
-function UsersAdminPanel() {
+export function UsersAdminPanel() {
   const usersQuery = useUsersQuery();
   const groupsQuery = useGroupsQuery();
   const updateUserMutation = useUpdateUserMutation();
@@ -349,7 +339,7 @@ function EditUserDialog({
   );
 }
 
-function GroupsAdminPanel() {
+export function GroupsAdminPanel() {
   const groupsQuery = useGroupsQuery();
   const createGroupMutation = useCreateGroupMutation();
   const updateGroupMutation = useUpdateGroupMutation();

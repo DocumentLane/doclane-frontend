@@ -1,10 +1,25 @@
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
+const createNextConfig = (phase: string): NextConfig => ({
   reactStrictMode: true,
   output: "standalone",
   devIndicators: false,
-  allowedDevOrigins: ["192.168.35.107"],
-};
+  ...(phase === PHASE_DEVELOPMENT_SERVER
+    ? {
+        async rewrites() {
+          const backendOrigin =
+            process.env.BACKEND_ORIGIN ?? "http://localhost:3000";
 
-export default nextConfig;
+          return [
+            {
+              source: "/api/:path*",
+              destination: `${backendOrigin}/:path*`,
+            },
+          ];
+        },
+      }
+    : {}),
+});
+
+export default createNextConfig;

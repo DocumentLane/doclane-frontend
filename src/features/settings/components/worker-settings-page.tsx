@@ -73,7 +73,6 @@ export function WorkerSettingsPage() {
           )}
         </CardContent>
       </Card>
-
     </main>
   );
 }
@@ -226,7 +225,9 @@ function WorkerSettingsForm({
             </p>
           ) : null}
           {isSaveError ? (
-            <p className="mt-1 text-destructive">Settings could not be saved.</p>
+            <p className="mt-1 text-destructive">
+              Settings could not be saved.
+            </p>
           ) : null}
           {isSaveSuccess ? (
             <p className="mt-1 text-muted-foreground">Settings saved.</p>

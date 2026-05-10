@@ -12,7 +12,7 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 }
 
 export const apiClient = axios.create({
-  baseURL: "/api/backend",
+  baseURL: "/api",
 });
 
 apiClient.interceptors.request.use((config) => {
@@ -44,7 +44,7 @@ apiClient.interceptors.response.use(
 
     try {
       const response = await axios.post<AuthTokenResponse>(
-        "/api/backend/auth/oidc/refresh",
+        "/api/auth/oidc/refresh",
         { refreshToken },
       );
       storeAuthTokens(response.data);

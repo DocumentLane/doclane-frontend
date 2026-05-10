@@ -15,8 +15,6 @@ RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 
-ARG BACKEND_ORIGIN=http://host.docker.internal:3000
-ENV BACKEND_ORIGIN=$BACKEND_ORIGIN
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY next.config.ts tsconfig.json postcss.config.mjs components.json ./

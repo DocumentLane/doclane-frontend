@@ -1,6 +1,6 @@
 # Doclane Frontend
 
-Next.js reader UI for Doclane. API calls go through `/api/backend/*`, which is rewritten to the configured backend origin.
+Next.js reader UI for Doclane. Browser API calls use `/api/*`; route that path to the backend at the infrastructure proxy layer.
 
 ## Requirements
 
@@ -10,13 +10,13 @@ Next.js reader UI for Doclane. API calls go through `/api/backend/*`, which is r
 
 ## Environment
 
-Copy `.env.example` to `.env` and set the backend origin.
+Copy `.env.example` to `.env` and set the backend origin for server-side backend calls.
 
 ```bash
 cp .env.example .env
 ```
 
-For local development, `BACKEND_ORIGIN` should point to the backend API, for example `http://localhost:3000`.
+For local development, `BACKEND_ORIGIN` should point to the backend API, for example `http://localhost:3000`. `next dev` rewrites browser requests from `/api/*` to `BACKEND_ORIGIN`.
 
 ## Local Development
 
@@ -30,18 +30,21 @@ pnpm dev
 Build the frontend image:
 
 ```bash
-docker build --build-arg BACKEND_ORIGIN=http://host.docker.internal:3000 -t doclane-frontend .
+docker build -t doclane-frontend .
 ```
 
 Run the frontend container:
 
 ```bash
 docker run --rm -p 3001:3000 \
-  -e BACKEND_ORIGIN="http://host.docker.internal:3000" \
+  -e BACKEND_ORIGIN="http://backend:3000" \
   doclane-frontend
 ```
 
-The frontend is exposed at `localhost:3001` and expects the backend API at `host.docker.internal:3000`.
+The production frontend container serves only the Next.js app. Route `/api/*` to the backend through the infrastructure proxy:
+
+- `/api/*` to `backend:3000`
+- `/*` to `frontend:3000`
 
 ## Verification
 

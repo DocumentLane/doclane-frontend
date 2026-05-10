@@ -4,9 +4,11 @@ import {
   FilesIcon,
   LibraryIcon,
   LogOutIcon,
+  ScrollTextIcon,
   SettingsIcon,
   ShieldIcon,
   SlidersHorizontalIcon,
+  UsersIcon,
   type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
@@ -108,9 +110,23 @@ const navigationSections: NavigationSection[] = [
         enabled: true,
       },
       {
-        title: "Admin",
-        href: "/admin",
+        title: "Users",
+        href: "/admin/users",
+        icon: UsersIcon,
+        enabled: true,
+        adminOnly: true,
+      },
+      {
+        title: "Groups",
+        href: "/admin/groups",
         icon: ShieldIcon,
+        enabled: true,
+        adminOnly: true,
+      },
+      {
+        title: "Audit logs",
+        href: "/admin/audit-logs",
+        icon: ScrollTextIcon,
         enabled: true,
         adminOnly: true,
       },

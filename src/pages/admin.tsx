@@ -6,7 +6,7 @@ export default function Admin() {
     <>
       <SeoHead
         title="Admin"
-        description="Manage users and groups in Doclane."
+        description="Manage users, groups, and audit logs in Doclane."
       />
       <AdminPage />
     </>
