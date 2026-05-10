@@ -6,6 +6,7 @@ import {
   SettingsIcon,
   SlidersHorizontalIcon,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { ReactNode } from "react";
@@ -128,11 +129,22 @@ function AppShellLayout({ user, children, pageTitle }: AppShellLayoutProps) {
     <>
       <Sidebar variant="inset">
         <SidebarHeader>
-          <div className="px-2 py-1.5">
-            <p className="text-sm font-medium">Doclane</p>
-            <p className="text-xs text-sidebar-foreground/70">
-              PDF workspace
-            </p>
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <Image
+              src="/favicon.ico"
+              alt=""
+              aria-hidden="true"
+              width={32}
+              height={32}
+              unoptimized
+              className="size-8 shrink-0 rounded-md"
+            />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">Doclane</p>
+              <p className="truncate text-xs text-sidebar-foreground/70">
+                PDF workspace
+              </p>
+            </div>
           </div>
         </SidebarHeader>
         <SidebarContent>
