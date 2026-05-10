@@ -29,6 +29,7 @@ import type {
   DocumentItem,
   DocumentJobStatus,
   DocumentNote,
+  DocumentPreviewResponse,
   DocumentStatusResponse,
   DocumentViewResponse,
 } from "../types/document.types";
@@ -100,13 +101,17 @@ export function useDocumentQuery(documentId: string | null) {
   });
 }
 
-export function usePublicDocumentQuery(documentId: string | null) {
+export function usePublicDocumentQuery(
+  documentId: string | null,
+  initialData?: DocumentItem,
+) {
   return useQuery({
     queryKey: documentId
       ? documentQueryKeys.publicDetail(documentId)
       : [...documentQueryKeys.all, "public", "detail", "missing"],
     queryFn: () => getPublicDocument(documentId as string),
     enabled: Boolean(documentId),
+    initialData,
   });
 }
 
@@ -149,6 +154,7 @@ export function useDocumentViewQuery(documentId: string | null, enabled = true) 
 export function usePublicDocumentViewQuery(
   documentId: string | null,
   enabled = true,
+  initialData?: DocumentViewResponse,
 ) {
   return useQuery({
     queryKey: documentId
@@ -162,6 +168,7 @@ export function usePublicDocumentViewQuery(
       return data && isDocumentViewLinearizationProcessing(data) ? 1500 : false;
     },
     staleTime: 60_000,
+    initialData,
   });
 }
 
@@ -183,6 +190,7 @@ export function useDocumentPreviewQuery(
 export function usePublicDocumentPreviewQuery(
   documentId: string | null,
   enabled = true,
+  initialData?: DocumentPreviewResponse | null,
 ) {
   return useQuery({
     queryKey: documentId
@@ -192,6 +200,7 @@ export function usePublicDocumentPreviewQuery(
     enabled: enabled && Boolean(documentId),
     retry: false,
     staleTime: 60_000,
+    initialData: initialData ?? undefined,
   });
 }
 

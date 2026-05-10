@@ -10,6 +10,11 @@ import {
   usePublicDocumentQuery,
   usePublicDocumentViewQuery,
 } from "../queries/documents.queries";
+import type {
+  DocumentItem,
+  DocumentPreviewResponse,
+  DocumentViewResponse,
+} from "../types/document.types";
 
 const PublicPdfReaderWorkspace = dynamic(
   () =>
@@ -28,13 +33,33 @@ const PublicPdfReaderWorkspace = dynamic(
 
 interface PublicDocumentReaderProps {
   documentId: string;
+  initialDocument?: DocumentItem;
+  initialView?: DocumentViewResponse;
+  initialPreview?: DocumentPreviewResponse | null;
 }
 
-export function PublicDocumentReader({ documentId }: PublicDocumentReaderProps) {
+function getPublicDocumentDescription(document: DocumentItem) {
+  if (document.pageCount) {
+    return `Read ${document.title}, a ${document.pageCount}-page PDF, in Doclane.`;
+  }
+
+  return `Read ${document.title} in Doclane.`;
+}
+
+export function PublicDocumentReader({
+  documentId,
+  initialDocument,
+  initialView,
+  initialPreview,
+}: PublicDocumentReaderProps) {
   const queryClient = useQueryClient();
-  const documentQuery = usePublicDocumentQuery(documentId);
-  const viewQuery = usePublicDocumentViewQuery(documentId);
-  const previewQuery = usePublicDocumentPreviewQuery(documentId);
+  const documentQuery = usePublicDocumentQuery(documentId, initialDocument);
+  const viewQuery = usePublicDocumentViewQuery(documentId, true, initialView);
+  const previewQuery = usePublicDocumentPreviewQuery(
+    documentId,
+    true,
+    initialPreview,
+  );
   const document = documentQuery.data;
   const view = viewQuery.data;
   const metadataJobFinished = Boolean(document?.metadataExtractedAt);
@@ -88,10 +113,13 @@ export function PublicDocumentReader({ documentId }: PublicDocumentReaderProps) 
     <>
       <SeoHead
         title={document.title}
-        description={`Read ${document.title} in Doclane.`}
+        description={getPublicDocumentDescription(document)}
         imageUrl={previewQuery.data?.previewUrl ?? null}
-        noIndex
       />
+      <section className="sr-only" aria-label="Public document information">
+        <h1>{document.title}</h1>
+        <p>{getPublicDocumentDescription(document)}</p>
+      </section>
       <PublicPdfReaderWorkspace
         title={document.title}
         viewUrl={view.viewUrl}
