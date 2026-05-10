@@ -4,6 +4,9 @@ import {
   EllipsisVerticalIcon,
   FileTextIcon,
   Grid2X2Icon,
+  Globe2Icon,
+  LinkIcon,
+  LockIcon,
   RefreshCcwIcon,
   Table2Icon,
   Trash2Icon,
@@ -11,6 +14,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,6 +38,7 @@ import {
   useDocumentPreviewQuery,
   useDocumentsQuery,
   useReprocessDocumentOcrMutation,
+  useUpdateDocumentPublicAccessMutation,
 } from "../queries/documents.queries";
 import { getPdfDownloadFileName, saveBlobAsFile } from "../lib/pdf-download";
 import type { DocumentItem } from "../types/document.types";
@@ -98,9 +103,9 @@ function DocumentListSkeleton({ viewMode }: { viewMode: DocumentListViewMode }) 
   }
 
   return (
-    <div className="flex flex-wrap gap-4">
+    <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
       {Array.from({ length: 8 }, (_, index) => (
-        <Skeleton key={index} className="aspect-[3/4] w-full flex-none sm:w-48" />
+        <Skeleton key={index} className="aspect-[3/4] w-full sm:w-48 sm:flex-none" />
       ))}
     </div>
   );
@@ -122,7 +127,7 @@ function DocumentEmptyState() {
 
 function DocumentGrid({ documents }: { documents: DocumentItem[] }) {
   return (
-    <div className="flex flex-wrap gap-4">
+    <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:gap-4">
       {documents.map((document) => (
         <DocumentGridCard key={document.id} document={document} />
       ))}
@@ -132,7 +137,7 @@ function DocumentGrid({ documents }: { documents: DocumentItem[] }) {
 
 function DocumentGridCard({ document }: { document: DocumentItem }) {
   return (
-    <div className="group relative aspect-[3/4] w-full flex-none overflow-hidden rounded-lg border bg-background transition hover:bg-muted/30 hover:shadow-sm sm:w-48">
+    <div className="group relative aspect-[3/4] w-full overflow-hidden rounded-md border bg-background transition hover:bg-muted/30 hover:shadow-sm sm:w-48 sm:flex-none sm:rounded-lg">
       <Link
         href={`/documents/${document.id}`}
         className="absolute inset-0 block"
@@ -142,13 +147,18 @@ function DocumentGridCard({ document }: { document: DocumentItem }) {
           document={document}
           className="absolute inset-0 rounded-none border-0"
         />
-        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 via-black/55 to-transparent px-3 pb-3 pt-10">
-          <h3 className="truncate text-sm font-medium leading-5 text-white group-hover:underline">
+        <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/85 via-black/55 to-transparent px-2 pb-2 pt-8 sm:px-3 sm:pb-3 sm:pt-10">
+          <h3 className="truncate text-xs font-medium leading-4 text-white group-hover:underline sm:text-sm sm:leading-5">
             {document.title}
           </h3>
         </div>
       </Link>
-      <div className="absolute right-2 top-2 z-10">
+      {document.isPublic ? (
+        <Badge className="absolute left-1.5 top-1.5 z-10 bg-background/85 text-foreground shadow-sm backdrop-blur sm:left-2 sm:top-2">
+          Public
+        </Badge>
+      ) : null}
+      <div className="absolute right-1.5 top-1.5 z-10 sm:right-2 sm:top-2">
         <DocumentActionsMenu document={document} />
       </div>
     </div>
@@ -184,6 +194,11 @@ function DocumentTable({ documents }: { documents: DocumentItem[] }) {
                 >
                   {document.title}
                 </Link>
+                {document.isPublic ? (
+                  <Badge variant="secondary" className="shrink-0">
+                    Public
+                  </Badge>
+                ) : null}
               </div>
             </TableCell>
             <TableCell className="text-right">
@@ -205,13 +220,21 @@ function getMutationErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Please try again.";
 }
 
+function getPublicDocumentUrl(documentId: string) {
+  return `${window.location.origin}/public/documents/${documentId}`;
+}
+
 function DocumentActionsMenu({ document }: { document: DocumentItem }) {
   const deleteDocumentMutation = useDeleteDocumentMutation();
   const downloadDocumentPdfMutation = useDownloadDocumentPdfMutation();
   const reprocessOcrMutation = useReprocessDocumentOcrMutation();
+  const updatePublicAccessMutation = useUpdateDocumentPublicAccessMutation();
   const isDeleting = deleteDocumentMutation.isPending;
   const isDownloading = downloadDocumentPdfMutation.isPending;
   const isReprocessing = reprocessOcrMutation.isPending;
+  const isUpdatingPublicAccess = updatePublicAccessMutation.isPending;
+  const isBusy =
+    isDeleting || isDownloading || isReprocessing || isUpdatingPublicAccess;
 
   const handleDelete = () => {
     const confirmed = window.confirm(`Delete "${document.title}"?`);
@@ -259,6 +282,40 @@ function DocumentActionsMenu({ document }: { document: DocumentItem }) {
     });
   };
 
+  const handleTogglePublicAccess = () => {
+    updatePublicAccessMutation.mutate(
+      {
+        documentId: document.id,
+        isPublic: !document.isPublic,
+      },
+      {
+        onSuccess: (updatedDocument) => {
+          toast.success(
+            updatedDocument.isPublic
+              ? "Public viewing enabled"
+              : "Public viewing disabled",
+          );
+        },
+        onError: (error) => {
+          toast.error("Public setting failed", {
+            description: getMutationErrorMessage(error),
+          });
+        },
+      },
+    );
+  };
+
+  const handleCopyPublicLink = async () => {
+    try {
+      await navigator.clipboard.writeText(getPublicDocumentUrl(document.id));
+      toast.success("Public link copied");
+    } catch {
+      toast.error("Copy failed", {
+        description: "Copy the link from your browser after opening it.",
+      });
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -276,14 +333,24 @@ function DocumentActionsMenu({ document }: { document: DocumentItem }) {
       <DropdownMenuContent align="end">
         <DropdownMenuItem
           onClick={handleDownload}
-          disabled={isDeleting || isDownloading || isReprocessing}
+          disabled={isBusy}
         >
           <DownloadIcon />
           Download PDF
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleTogglePublicAccess} disabled={isBusy}>
+          {document.isPublic ? <LockIcon /> : <Globe2Icon />}
+          {document.isPublic ? "Make private" : "Make public"}
+        </DropdownMenuItem>
+        {document.isPublic ? (
+          <DropdownMenuItem onClick={handleCopyPublicLink} disabled={isBusy}>
+            <LinkIcon />
+            Copy public link
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem
           onClick={handleReprocessOcr}
-          disabled={isDeleting || isDownloading || isReprocessing}
+          disabled={isBusy}
         >
           <RefreshCcwIcon />
           Process OCR again
@@ -291,7 +358,7 @@ function DocumentActionsMenu({ document }: { document: DocumentItem }) {
         <DropdownMenuItem
           variant="destructive"
           onClick={handleDelete}
-          disabled={isDeleting || isDownloading || isReprocessing}
+          disabled={isBusy}
         >
           <Trash2Icon />
           Delete

@@ -10,6 +10,7 @@ import type {
   DocumentViewResponse,
   DeleteDocumentNoteInput,
   SaveDocumentNoteInput,
+  UpdateDocumentPublicAccessInput,
   UpdateDocumentReadingPositionInput,
   UploadDocumentInput,
 } from "../types/document.types";
@@ -22,6 +23,16 @@ export async function listDocuments(): Promise<DocumentItem[]> {
 
 export async function getDocument(documentId: string): Promise<DocumentItem> {
   const response = await apiClient.get<DocumentItem>(`/documents/${documentId}`);
+
+  return response.data;
+}
+
+export async function getPublicDocument(
+  documentId: string,
+): Promise<DocumentItem> {
+  const response = await apiClient.get<DocumentItem>(
+    `/public/documents/${documentId}`,
+  );
 
   return response.data;
 }
@@ -60,6 +71,16 @@ export async function getDocumentViewUrl(
   return response.data;
 }
 
+export async function getPublicDocumentViewUrl(
+  documentId: string,
+): Promise<DocumentViewResponse> {
+  const response = await apiClient.get<DocumentViewResponse>(
+    `/public/documents/${documentId}/view`,
+  );
+
+  return response.data;
+}
+
 export async function getDocumentPdfBlob(documentId: string): Promise<Blob> {
   const view = await getDocumentViewUrl(documentId);
   const response = await axios.get<Blob>(view.viewUrl, {
@@ -74,6 +95,16 @@ export async function getDocumentPreviewImage(
 ): Promise<DocumentPreviewResponse> {
   const response = await apiClient.get<DocumentPreviewResponse>(
     `/documents/${documentId}/preview`,
+  );
+
+  return response.data;
+}
+
+export async function getPublicDocumentPreviewImage(
+  documentId: string,
+): Promise<DocumentPreviewResponse> {
+  const response = await apiClient.get<DocumentPreviewResponse>(
+    `/public/documents/${documentId}/preview`,
   );
 
   return response.data;
@@ -144,6 +175,19 @@ export async function updateDocumentReadingPosition(
   await apiClient.put(`/documents/${input.documentId}/reading-position`, {
     pageNumber: input.pageNumber,
   });
+}
+
+export async function updateDocumentPublicAccess(
+  input: UpdateDocumentPublicAccessInput,
+): Promise<DocumentItem> {
+  const response = await apiClient.patch<DocumentItem>(
+    `/documents/${input.documentId}/public-access`,
+    {
+      isPublic: input.isPublic,
+    },
+  );
+
+  return response.data;
 }
 
 export async function uploadDocument(

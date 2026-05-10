@@ -71,13 +71,14 @@ export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const [queryClient] = useState(() => createQueryClient());
   const isAuthCallback = router.pathname === "/auth/callback";
+  const isPublicPage = router.pathname.startsWith("/public/");
 
   useThemeModeSync();
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {isAuthCallback ? (
+        {isAuthCallback || isPublicPage ? (
           <Component {...pageProps} />
         ) : (
           <AuthenticatedApp Component={Component} pageProps={pageProps} />

@@ -43,6 +43,7 @@ export interface DocumentItem {
   sizeBytes: string | null;
   status: DocumentStatus;
   ocrStatus: DocumentOcrStatus;
+  isPublic: boolean;
   pageCount: number | null;
   lastReadPageNumber: number | null;
   hasTextLayer: boolean | null;
@@ -151,4 +152,9 @@ export interface SaveDocumentNoteInput {
 export interface DeleteDocumentNoteInput {
   documentId: string;
   pageNumber: number;
+}
+
+export interface UpdateDocumentPublicAccessInput {
+  documentId: string;
+  isPublic: boolean;
 }

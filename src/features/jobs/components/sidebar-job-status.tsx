@@ -50,7 +50,11 @@ function formatJobProgressDetail(job: {
   return `${job.completedPages}/${job.totalPages} pages`;
 }
 
-export function SidebarJobStatus() {
+interface SidebarJobStatusProps {
+  onNavigate?: () => void;
+}
+
+export function SidebarJobStatus({ onNavigate }: SidebarJobStatusProps) {
   const { rows } = useDocumentJobSummaries();
   const ongoingRows = rows.filter(({ job }) => isOngoingDocumentJob(job.status));
 
@@ -73,6 +77,7 @@ export function SidebarJobStatus() {
   return (
     <Link
       href="/jobs"
+      onClick={onNavigate}
       className="block rounded-md border bg-sidebar-accent/40 px-2.5 py-2 text-sidebar-foreground transition hover:bg-sidebar-accent"
     >
       <div className="flex items-start gap-1.5">

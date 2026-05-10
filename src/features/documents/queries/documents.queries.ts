@@ -5,6 +5,9 @@ import {
   getDocument,
   getDocumentPdfBlob,
   getDocumentPreviewImage,
+  getPublicDocument,
+  getPublicDocumentPreviewImage,
+  getPublicDocumentViewUrl,
   getDocumentStatus,
   getDocumentViewUrl,
   listDocuments,
@@ -15,6 +18,7 @@ import {
   saveDocumentNote,
   saveDocumentBookmark,
   updateDocumentReadingPosition,
+  updateDocumentPublicAccess,
   uploadDocument,
 } from "./documents.api";
 import type {
@@ -37,6 +41,12 @@ export const documentQueryKeys = {
     [...documentQueryKeys.all, "view", documentId] as const,
   preview: (documentId: string) =>
     [...documentQueryKeys.all, "preview", documentId] as const,
+  publicDetail: (documentId: string) =>
+    [...documentQueryKeys.all, "public", "detail", documentId] as const,
+  publicView: (documentId: string) =>
+    [...documentQueryKeys.all, "public", "view", documentId] as const,
+  publicPreview: (documentId: string) =>
+    [...documentQueryKeys.all, "public", "preview", documentId] as const,
   bookmarks: (documentId: string) =>
     [...documentQueryKeys.all, "bookmarks", documentId] as const,
   notes: (documentId: string) =>
@@ -87,6 +97,16 @@ export function useDocumentQuery(documentId: string | null) {
   });
 }
 
+export function usePublicDocumentQuery(documentId: string | null) {
+  return useQuery({
+    queryKey: documentId
+      ? documentQueryKeys.publicDetail(documentId)
+      : [...documentQueryKeys.all, "public", "detail", "missing"],
+    queryFn: () => getPublicDocument(documentId as string),
+    enabled: Boolean(documentId),
+  });
+}
+
 export function useDocumentStatusQuery(documentId: string | null) {
   return useQuery({
     queryKey: documentId
@@ -123,6 +143,25 @@ export function useDocumentViewQuery(documentId: string | null, enabled = true) 
   });
 }
 
+export function usePublicDocumentViewQuery(
+  documentId: string | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: documentId
+      ? documentQueryKeys.publicView(documentId)
+      : [...documentQueryKeys.all, "public", "view", "missing"],
+    queryFn: () => getPublicDocumentViewUrl(documentId as string),
+    enabled: enabled && Boolean(documentId),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+
+      return data && isDocumentViewLinearizationProcessing(data) ? 1500 : false;
+    },
+    staleTime: 60_000,
+  });
+}
+
 export function useDocumentPreviewQuery(
   documentId: string | null,
   enabled = true,
@@ -138,6 +177,21 @@ export function useDocumentPreviewQuery(
   });
 }
 
+export function usePublicDocumentPreviewQuery(
+  documentId: string | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: documentId
+      ? documentQueryKeys.publicPreview(documentId)
+      : [...documentQueryKeys.all, "public", "preview", "missing"],
+    queryFn: () => getPublicDocumentPreviewImage(documentId as string),
+    enabled: enabled && Boolean(documentId),
+    retry: false,
+    staleTime: 60_000,
+  });
+}
+
 export function useDocumentBookmarksQuery(documentId: string | null) {
   return useQuery({
     queryKey: documentId
@@ -145,16 +199,18 @@ export function useDocumentBookmarksQuery(documentId: string | null) {
       : [...documentQueryKeys.all, "bookmarks", "missing"],
     queryFn: () => listDocumentBookmarks(documentId as string),
     enabled: Boolean(documentId),
+    staleTime: 60_000,
   });
 }
 
-export function useDocumentNotesQuery(documentId: string | null) {
+export function useDocumentNotesQuery(documentId: string | null, enabled = true) {
   return useQuery({
     queryKey: documentId
       ? documentQueryKeys.notes(documentId)
       : [...documentQueryKeys.all, "notes", "missing"],
     queryFn: () => listDocumentNotes(documentId as string),
-    enabled: Boolean(documentId),
+    enabled: enabled && Boolean(documentId),
+    staleTime: 60_000,
   });
 }
 
@@ -304,6 +360,21 @@ export function useUpdateDocumentReadingPositionMutation() {
             ? { ...document, lastReadPageNumber: input.pageNumber }
             : document,
       );
+    },
+  });
+}
+
+export function useUpdateDocumentPublicAccessMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateDocumentPublicAccess,
+    onSuccess: async (document) => {
+      queryClient.setQueryData<DocumentItem | undefined>(
+        documentQueryKeys.detail(document.id),
+        document,
+      );
+      await queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() });
     },
   });
 }

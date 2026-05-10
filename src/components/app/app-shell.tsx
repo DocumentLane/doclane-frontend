@@ -29,6 +29,7 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import type { AuthenticatedUser } from "@/features/auth/types/auth.types";
 import { useLogout } from "@/features/auth/queries/auth.queries";
@@ -37,6 +38,10 @@ import { SidebarJobStatus } from "@/features/jobs/components/sidebar-job-status"
 interface AppShellProps {
   user: AuthenticatedUser;
   children: ReactNode;
+}
+
+interface AppShellLayoutProps extends AppShellProps {
+  pageTitle: string;
 }
 
 const navigationSections = [
@@ -81,17 +86,46 @@ const navigationSections = [
   },
 ];
 
+function getPageTitle(pathname: string) {
+  return (
+    navigationSections
+      .flatMap((section) => section.items)
+      .find((item) => item.href === pathname)?.title ?? "Doclane"
+  );
+}
+
 export function AppShell({ user, children }: AppShellProps) {
   const router = useRouter();
+  const pageTitle = getPageTitle(router.pathname);
+
+  return (
+    <SidebarProvider className="h-svh min-h-0 overflow-hidden">
+      <AppShellLayout user={user} pageTitle={pageTitle}>
+        {children}
+      </AppShellLayout>
+    </SidebarProvider>
+  );
+}
+
+function AppShellLayout({ user, children, pageTitle }: AppShellLayoutProps) {
+  const router = useRouter();
+  const { isMobile, setOpenMobile } = useSidebar();
   const logout = useLogout();
 
+  const closeMobileSidebar = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
   const handleLogout = () => {
+    closeMobileSidebar();
     logout();
     void router.replace("/");
   };
 
   return (
-    <SidebarProvider>
+    <>
       <Sidebar variant="inset">
         <SidebarHeader>
           <div className="px-2 py-1.5">
@@ -113,6 +147,7 @@ export function AppShell({ user, children }: AppShellProps) {
                         render={
                           item.enabled ? <Link href={item.href} /> : undefined
                         }
+                        onClick={closeMobileSidebar}
                         disabled={!item.enabled}
                         isActive={item.enabled && router.pathname === item.href}
                         tooltip={item.title}
@@ -129,7 +164,7 @@ export function AppShell({ user, children }: AppShellProps) {
         </SidebarContent>
         <SidebarFooter>
           <div className="space-y-3 p-2">
-            <SidebarJobStatus />
+            <SidebarJobStatus onNavigate={closeMobileSidebar} />
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
@@ -160,16 +195,16 @@ export function AppShell({ user, children }: AppShellProps) {
           </div>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
+      <SidebarInset className="min-h-0 overflow-hidden">
         <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger />
           <div className="h-4 w-px bg-border" />
-          <span className="text-sm text-muted-foreground">
-            Document reader
-          </span>
+          <h1 className="min-w-0 truncate text-sm font-semibold">{pageTitle}</h1>
         </header>
-        <div className="min-h-0 flex-1">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {children}
+        </div>
       </SidebarInset>
-    </SidebarProvider>
+    </>
   );
 }

@@ -2,6 +2,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { SeoHead } from "@/components/app/seo-head";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -65,51 +66,81 @@ export function DocumentReader({ documentId }: DocumentReaderProps) {
 
   if (documentQuery.isError || viewQuery.isError) {
     return (
-      <main className="flex min-h-svh items-center justify-center bg-background p-6">
-        <Alert variant="destructive">
-          <AlertTitle>Document failed to load</AlertTitle>
-          <AlertDescription>
-            The document details or file link could not be loaded.
-          </AlertDescription>
-        </Alert>
-      </main>
+      <>
+        <SeoHead
+          title="Document failed to load"
+          description="The requested Doclane document could not be loaded."
+          noIndex
+        />
+        <main className="flex min-h-svh items-center justify-center bg-background p-6">
+          <Alert variant="destructive">
+            <AlertTitle>Document failed to load</AlertTitle>
+            <AlertDescription>
+              The document details or file link could not be loaded.
+            </AlertDescription>
+          </Alert>
+        </main>
+      </>
     );
   }
 
   if (!document || !view) {
     return (
-      <main className="flex h-svh min-h-0 flex-col bg-background p-6">
-        <Skeleton className="h-full w-full" />
-      </main>
+      <>
+        <SeoHead
+          title="Document"
+          description="Read and annotate a PDF document in Doclane."
+          noIndex
+        />
+        <main className="flex h-svh min-h-0 flex-col bg-background p-6">
+          <Skeleton className="h-full w-full" />
+        </main>
+      </>
     );
   }
 
   if (status === "PROCESSING_FAILED") {
     return (
-      <main className="flex min-h-svh items-center justify-center bg-background p-6">
-        <Alert variant="destructive">
-          <AlertTitle>Processing failed</AlertTitle>
-          <AlertDescription>
-            PDF processing failed. Try processing the document again later.
-          </AlertDescription>
-        </Alert>
-      </main>
+      <>
+        <SeoHead
+          title={document.title}
+          description={`${document.title} could not be processed in Doclane.`}
+          imageUrl={previewQuery.data?.previewUrl ?? null}
+          noIndex
+        />
+        <main className="flex min-h-svh items-center justify-center bg-background p-6">
+          <Alert variant="destructive">
+            <AlertTitle>Processing failed</AlertTitle>
+            <AlertDescription>
+              PDF processing failed. Try processing the document again later.
+            </AlertDescription>
+          </Alert>
+        </main>
+      </>
     );
   }
 
   return (
-    <PdfReaderWorkspace
-      key={documentId}
-      documentId={documentId}
-      title={document.title}
-      originalFileName={document.originalFileName}
-      viewUrl={view.viewUrl}
-      previewUrl={previewQuery.data?.previewUrl ?? null}
-      documentPageCount={statusQuery.data?.pageCount ?? document.pageCount}
-      initialPageNumber={document.lastReadPageNumber ?? 1}
-      linearizationStatus={view.linearizationStatus}
-      jobs={statusQuery.data?.jobs ?? []}
-      onBack={handleBack}
-    />
+    <>
+      <SeoHead
+        title={document.title}
+        description={`Read ${document.title} in Doclane.`}
+        imageUrl={previewQuery.data?.previewUrl ?? null}
+        noIndex
+      />
+      <PdfReaderWorkspace
+        key={documentId}
+        documentId={documentId}
+        title={document.title}
+        originalFileName={document.originalFileName}
+        viewUrl={view.viewUrl}
+        previewUrl={previewQuery.data?.previewUrl ?? null}
+        documentPageCount={statusQuery.data?.pageCount ?? document.pageCount}
+        initialPageNumber={document.lastReadPageNumber ?? 1}
+        linearizationStatus={view.linearizationStatus}
+        jobs={statusQuery.data?.jobs ?? []}
+        onBack={handleBack}
+      />
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { StickyNoteIcon } from "lucide-react";
+import { StickyNoteIcon, XIcon } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -7,6 +7,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { Button } from "@/components/ui/button";
 import type { DocumentNote } from "../types/document.types";
 
 interface PdfNotesPanelProps {
@@ -18,6 +19,7 @@ interface PdfNotesPanelProps {
   isDeleting: boolean;
   width: number;
   onWidthChange: (width: number) => void;
+  onClose: () => void;
   onSaveNote: (input: {
     documentId: string;
     pageNumber: number;
@@ -99,6 +101,7 @@ export function PdfNotesPanel({
   isDeleting,
   width,
   onWidthChange,
+  onClose,
   onSaveNote,
   onDeleteNote,
 }: PdfNotesPanelProps) {
@@ -243,11 +246,23 @@ export function PdfNotesPanel({
             Page {currentPage}
           </span>
         </div>
-        {isSaving ? (
-          <span className="shrink-0 text-xs font-medium text-muted-foreground">
-            Saving...
-          </span>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-1">
+          {isSaving ? (
+            <span className="text-xs font-medium text-muted-foreground">
+              Saving...
+            </span>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8"
+            onClick={onClose}
+            aria-label="Close notes panel"
+          >
+            <XIcon />
+          </Button>
+        </div>
       </div>
       <textarea
         value={draftContent}

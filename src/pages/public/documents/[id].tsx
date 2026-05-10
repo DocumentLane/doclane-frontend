@@ -1,8 +1,8 @@
 import { useRouter } from "next/router";
 import { SeoHead } from "@/components/app/seo-head";
-import { DocumentReader } from "@/features/documents/components/document-reader";
+import { PublicDocumentReader } from "@/features/documents/components/public-document-reader";
 
-function DocumentPage() {
+function PublicDocumentPage() {
   const router = useRouter();
   const documentId = typeof router.query.id === "string" ? router.query.id : null;
 
@@ -10,8 +10,8 @@ function DocumentPage() {
     return (
       <>
         <SeoHead
-          title="Document"
-          description="Read and annotate a PDF document in Doclane."
+          title="Public document"
+          description="Read a public PDF document in Doclane."
           noIndex
         />
         <main className="p-6">
@@ -21,9 +21,9 @@ function DocumentPage() {
     );
   }
 
-  return <DocumentReader documentId={documentId} />;
+  return <PublicDocumentReader documentId={documentId} />;
 }
 
-DocumentPage.fullscreen = true;
+PublicDocumentPage.fullscreen = true;
 
-export default DocumentPage;
+export default PublicDocumentPage;

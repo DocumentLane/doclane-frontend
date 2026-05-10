@@ -13,6 +13,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { v4 as createUuid } from "uuid";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +40,7 @@ interface UploadQueueItem {
 }
 
 function createUploadId(file: File) {
-  return `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`;
+  return `${file.name}-${file.size}-${file.lastModified}-${createUuid()}`;
 }
 
 function isPdfFile(file: File) {

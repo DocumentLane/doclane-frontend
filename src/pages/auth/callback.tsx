@@ -1,5 +1,6 @@
 import { useRouter } from "next/router";
 import { useEffect } from "react";
+import { SeoHead } from "@/components/app/seo-head";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuthorizeCallbackMutation } from "@/features/auth/queries/auth.queries";
@@ -27,26 +28,33 @@ export default function AuthCallbackPage() {
   }, [callbackMutation, code, router, state]);
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-background p-6">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Completing sign in</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {callbackMutation.isError ? (
-            <Alert variant="destructive">
-              <AlertTitle>Sign-in failed</AlertTitle>
-              <AlertDescription>
-                Your sign-in could not be completed. Sign in again.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Finishing sign in.
-            </p>
-          )}
-        </CardContent>
-      </Card>
-    </main>
+    <>
+      <SeoHead
+        title="Completing Sign In"
+        description="Complete your Doclane sign-in."
+        noIndex
+      />
+      <main className="flex min-h-svh items-center justify-center bg-background p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Completing sign in</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {callbackMutation.isError ? (
+              <Alert variant="destructive">
+                <AlertTitle>Sign-in failed</AlertTitle>
+                <AlertDescription>
+                  Your sign-in could not be completed. Sign in again.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Finishing sign in.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+    </>
   );
 }

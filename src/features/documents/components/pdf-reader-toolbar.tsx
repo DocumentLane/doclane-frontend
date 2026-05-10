@@ -245,7 +245,7 @@ export function PdfReaderToolbar({
   const canShowPagePosition = hasVisiblePage && pageCount > 0;
 
   return (
-    <header className="relative flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4">
+    <header className="relative flex h-12 shrink-0 items-center gap-2 border-b bg-background px-2 md:h-14 md:gap-3 md:px-4">
       {shouldShowLoadingProgress ? (
         <div className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden bg-border">
           <div
@@ -254,7 +254,7 @@ export function PdfReaderToolbar({
           />
         </div>
       ) : null}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 md:gap-2">
         <Button
           variant="ghost"
           size="icon"
@@ -268,6 +268,7 @@ export function PdfReaderToolbar({
           size="icon"
           onClick={onToggleSidebar}
           aria-label="Toggle thumbnail sidebar"
+          className="hidden md:inline-flex"
         >
           <PanelLeftIcon />
         </Button>
@@ -276,6 +277,7 @@ export function PdfReaderToolbar({
           size="icon"
           onClick={onHideToolbar}
           aria-label="Hide top toolbar"
+          className="hidden md:inline-flex"
         >
           <ChevronsUpIcon />
         </Button>
@@ -374,6 +376,7 @@ export function PdfReaderToolbar({
           onClick={onDownload}
           disabled={!isReady || isDownloading}
           aria-label="Download PDF"
+          className="hidden md:inline-flex"
         >
           <DownloadIcon />
         </Button>
@@ -413,6 +416,7 @@ export function PdfReaderToolbar({
           onClick={() => onScaleChange("out")}
           disabled={!isReady}
           aria-label="Zoom out"
+          className="hidden md:inline-flex"
         >
           <ZoomOutIcon />
         </Button>
@@ -447,6 +451,7 @@ export function PdfReaderToolbar({
           onClick={() => onScaleChange("in")}
           disabled={!isReady}
           aria-label="Zoom in"
+          className="hidden md:inline-flex"
         >
           <ZoomInIcon />
         </Button>
