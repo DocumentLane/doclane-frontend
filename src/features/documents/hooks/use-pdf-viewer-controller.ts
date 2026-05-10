@@ -327,6 +327,7 @@ export function usePdfViewerController({
     const loadingTask = getDocument({
       url: viewUrl,
       disableRange: false,
+      disableStream: true,
       disableAutoFetch: true,
       enableHWA: true,
       rangeChunkSize: PDF_RANGE_CHUNK_SIZE,
