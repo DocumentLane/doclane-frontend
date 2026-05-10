@@ -208,7 +208,7 @@ export function DocumentUploadPanel({
   const failedUploads = uploads.filter((upload) => upload.status === "error");
 
   return (
-    <form className="flex min-h-0 flex-col gap-4" onSubmit={handleSubmit}>
+    <form className="flex min-h-0 min-w-0 flex-col gap-4" onSubmit={handleSubmit}>
       <div className="grid gap-2">
         <Label htmlFor="document-file">PDF files</Label>
         <label
@@ -241,17 +241,17 @@ export function DocumentUploadPanel({
       </div>
 
       {uploads.length > 0 ? (
-        <div className="min-h-0 max-h-[40svh] space-y-2 overflow-y-auto pr-1 overscroll-contain">
+        <div className="min-h-0 min-w-0 max-h-[40svh] space-y-2 overflow-y-auto pr-1 overscroll-contain">
           {uploads.map((upload) => (
             <div
               key={upload.id}
-              className="rounded-md border bg-background p-3"
+              className="min-w-0 rounded-md border bg-background p-3"
             >
-              <div className="flex items-start gap-3">
+              <div className="flex min-w-0 items-start gap-3">
                 <FileTextIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0 flex-1 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
                         {upload.file.name}
                       </p>
