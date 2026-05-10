@@ -39,6 +39,7 @@ export interface DocumentItem {
   id: string;
   title: string;
   originalFileName: string;
+  folderId: string | null;
   contentType: string;
   sizeBytes: string | null;
   status: DocumentStatus;
@@ -150,12 +151,18 @@ export interface DocumentNote {
 export interface UploadDocumentInput {
   file: File;
   title?: string;
+  folderId?: string | null;
   onUploadProgress?: (progressPercent: number) => void;
 }
 
 export interface UpdateDocumentTitleInput {
   documentId: string;
   title: string;
+}
+
+export interface UpdateDocumentFolderInput {
+  documentId: string;
+  folderId: string | null;
 }
 
 export interface UploadDocumentThumbnailInput {

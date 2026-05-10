@@ -5,10 +5,12 @@ import {
   getDocument,
   getDocumentPdfBlob,
   getDocumentPreviewImage,
+  listDocumentPermissions,
   getPublicDocument,
   getPublicDocumentPreviewImage,
   getPublicDocumentViewUrl,
   getDocumentStatus,
+  getDocumentStatuses,
   getDocumentViewUrl,
   listDocuments,
   listDocumentBookmarks,
@@ -16,8 +18,11 @@ import {
   reprocessDocumentOcr,
   restartDocumentJob,
   removeDocumentBookmark,
+  removeDocumentPermission,
   saveDocumentNote,
   saveDocumentBookmark,
+  saveDocumentPermission,
+  updateDocumentFolder,
   updateDocumentTitle,
   updateDocumentReadingPosition,
   updateDocumentPublicAccess,
@@ -37,8 +42,14 @@ import type {
 export const documentQueryKeys = {
   all: ["documents"] as const,
   lists: () => [...documentQueryKeys.all, "list"] as const,
+  list: (folderId?: string | null) =>
+    [
+      ...documentQueryKeys.lists(),
+      folderId === undefined ? "all" : folderId === null ? "unfiled" : folderId,
+    ] as const,
   detail: (documentId: string) =>
     [...documentQueryKeys.all, "detail", documentId] as const,
+  statuses: () => [...documentQueryKeys.all, "statuses"] as const,
   status: (documentId: string) =>
     [...documentQueryKeys.all, "status", documentId] as const,
   view: (documentId: string) =>
@@ -55,6 +66,8 @@ export const documentQueryKeys = {
     [...documentQueryKeys.all, "bookmarks", documentId] as const,
   notes: (documentId: string) =>
     [...documentQueryKeys.all, "notes", documentId] as const,
+  permissions: (documentId: string) =>
+    [...documentQueryKeys.all, "permissions", documentId] as const,
 };
 
 export function isDocumentProcessing(status: DocumentStatusResponse["status"]) {
@@ -77,6 +90,14 @@ function hasOngoingDocumentJob(status: DocumentStatusResponse) {
   return status.jobs.some((job) => ongoingJobStatuses.has(job.status));
 }
 
+function shouldPollDocumentStatus(status: DocumentStatusResponse) {
+  return (
+    isDocumentProcessing(status.status) ||
+    isDocumentOcrProcessing(status.ocrStatus) ||
+    hasOngoingDocumentJob(status)
+  );
+}
+
 function isDocumentViewLinearizationProcessing(view: DocumentViewResponse) {
   return (
     view.linearizationStatus === "PENDING" ||
@@ -84,10 +105,10 @@ function isDocumentViewLinearizationProcessing(view: DocumentViewResponse) {
   );
 }
 
-export function useDocumentsQuery() {
+export function useDocumentsQuery(folderId?: string | null) {
   return useQuery({
-    queryKey: documentQueryKeys.lists(),
-    queryFn: listDocuments,
+    queryKey: documentQueryKeys.list(folderId),
+    queryFn: () => listDocuments(folderId),
   });
 }
 
@@ -125,10 +146,19 @@ export function useDocumentStatusQuery(documentId: string | null) {
     refetchInterval: (query) => {
       const data = query.state.data;
 
-      return data &&
-        (isDocumentProcessing(data.status) ||
-          isDocumentOcrProcessing(data.ocrStatus) ||
-          hasOngoingDocumentJob(data))
+      return data && shouldPollDocumentStatus(data) ? 1500 : false;
+    },
+  });
+}
+
+export function useDocumentStatusesQuery() {
+  return useQuery({
+    queryKey: documentQueryKeys.statuses(),
+    queryFn: getDocumentStatuses,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+
+      return data?.some((status) => shouldPollDocumentStatus(status))
         ? 1500
         : false;
     },
@@ -226,6 +256,20 @@ export function useDocumentNotesQuery(documentId: string | null, enabled = true)
   });
 }
 
+export function useDocumentPermissionsQuery(
+  documentId: string | null,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: documentId
+      ? documentQueryKeys.permissions(documentId)
+      : [...documentQueryKeys.all, "permissions", "missing"],
+    queryFn: () => listDocumentPermissions(documentId as string),
+    enabled: enabled && Boolean(documentId),
+    retry: false,
+  });
+}
+
 export function useDeleteDocumentMutation() {
   const queryClient = useQueryClient();
 
@@ -250,6 +294,12 @@ export function useDeleteDocumentMutation() {
       queryClient.removeQueries({
         queryKey: documentQueryKeys.notes(documentId),
       });
+      queryClient.removeQueries({
+        queryKey: documentQueryKeys.permissions(documentId),
+      });
+      queryClient.removeQueries({
+        queryKey: documentQueryKeys.statuses(),
+      });
 
       await queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() });
     },
@@ -264,6 +314,9 @@ export function useReprocessDocumentOcrMutation() {
     onSuccess: async (_status, documentId) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.statuses(),
+        }),
         queryClient.invalidateQueries({
           queryKey: documentQueryKeys.detail(documentId),
         }),
@@ -289,6 +342,9 @@ export function useRestartDocumentJobMutation() {
     onSuccess: async (_status, input) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.statuses(),
+        }),
         queryClient.invalidateQueries({
           queryKey: documentQueryKeys.detail(input.documentId),
         }),
@@ -416,6 +472,21 @@ export function useUpdateDocumentTitleMutation() {
   });
 }
 
+export function useUpdateDocumentFolderMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateDocumentFolder,
+    onSuccess: async (document) => {
+      queryClient.setQueryData<DocumentItem | undefined>(
+        documentQueryKeys.detail(document.id),
+        document,
+      );
+      await queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() });
+    },
+  });
+}
+
 export function useUpdateDocumentPublicAccessMutation() {
   const queryClient = useQueryClient();
 
@@ -427,6 +498,32 @@ export function useUpdateDocumentPublicAccessMutation() {
         document,
       );
       await queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() });
+    },
+  });
+}
+
+export function useSaveDocumentPermissionMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: saveDocumentPermission,
+    onSuccess: async (_permission, input) => {
+      await queryClient.invalidateQueries({
+        queryKey: documentQueryKeys.permissions(input.resourceId),
+      });
+    },
+  });
+}
+
+export function useRemoveDocumentPermissionMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: removeDocumentPermission,
+    onSuccess: async (_result, input) => {
+      await queryClient.invalidateQueries({
+        queryKey: documentQueryKeys.permissions(input.resourceId),
+      });
     },
   });
 }
@@ -458,6 +555,9 @@ export function useUploadDocumentMutation() {
     onSuccess: async (document) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.statuses(),
+        }),
         queryClient.invalidateQueries({
           queryKey: documentQueryKeys.detail(document.id),
         }),

@@ -13,14 +13,29 @@ import type {
   RestartDocumentJobInput,
   SaveDocumentNoteInput,
   UpdateDocumentTitleInput,
+  UpdateDocumentFolderInput,
   UpdateDocumentPublicAccessInput,
   UpdateDocumentReadingPositionInput,
   UploadDocumentThumbnailInput,
   UploadDocumentInput,
 } from "../types/document.types";
+import type {
+  DocumentPermissions,
+  RemoveResourcePermissionInput,
+  ResourcePermissionItem,
+  SaveResourcePermissionInput,
+} from "@/features/folders/types/folder.types";
 
-export async function listDocuments(): Promise<DocumentItem[]> {
-  const response = await apiClient.get<DocumentItem[]>("/documents");
+export async function listDocuments(
+  folderId?: string | null,
+): Promise<DocumentItem[]> {
+  const params =
+    folderId === undefined
+      ? undefined
+      : { folderId: folderId === null ? "null" : folderId };
+  const response = await apiClient.get<DocumentItem[]>("/documents", {
+    params,
+  });
 
   return response.data;
 }
@@ -58,6 +73,19 @@ export async function updateDocumentTitle(
   return response.data;
 }
 
+export async function updateDocumentFolder(
+  input: UpdateDocumentFolderInput,
+): Promise<DocumentItem> {
+  const response = await apiClient.patch<DocumentItem>(
+    `/documents/${input.documentId}`,
+    {
+      folderId: input.folderId,
+    },
+  );
+
+  return response.data;
+}
+
 export async function reprocessDocumentOcr(
   documentId: string,
 ): Promise<DocumentStatusResponse> {
@@ -84,6 +112,13 @@ export async function getDocumentStatus(
   const response = await apiClient.get<DocumentStatusResponse>(
     `/documents/${documentId}/status`,
   );
+
+  return response.data;
+}
+
+export async function getDocumentStatuses(): Promise<DocumentStatusResponse[]> {
+  const response =
+    await apiClient.get<DocumentStatusResponse[]>("/documents/statuses");
 
   return response.data;
 }
@@ -217,6 +252,37 @@ export async function updateDocumentPublicAccess(
   return response.data;
 }
 
+export async function listDocumentPermissions(
+  documentId: string,
+): Promise<DocumentPermissions> {
+  const response = await apiClient.get<DocumentPermissions>(
+    `/documents/${documentId}/permissions`,
+  );
+
+  return response.data;
+}
+
+export async function saveDocumentPermission(
+  input: SaveResourcePermissionInput,
+): Promise<ResourcePermissionItem> {
+  const response = await apiClient.put<ResourcePermissionItem>(
+    `/documents/${input.resourceId}/permissions/${input.targetType}/${input.targetId}`,
+    {
+      permission: input.permission,
+    },
+  );
+
+  return response.data;
+}
+
+export async function removeDocumentPermission(
+  input: RemoveResourcePermissionInput,
+): Promise<void> {
+  await apiClient.delete(
+    `/documents/${input.resourceId}/permissions/${input.targetType}/${input.targetId}`,
+  );
+}
+
 export async function uploadDocumentThumbnail(
   input: UploadDocumentThumbnailInput,
 ): Promise<DocumentThumbnailUploadSession> {
@@ -249,6 +315,7 @@ export async function uploadDocument(
       originalFileName: input.file.name,
       title: input.title || input.file.name,
       sizeBytes: input.file.size,
+      folderId: input.folderId,
     },
   );
   const uploadSession = sessionResponse.data;

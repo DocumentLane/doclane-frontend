@@ -1,10 +1,13 @@
 import {
   BriefcaseBusinessIcon,
   ChevronUpIcon,
-  FileTextIcon,
+  FilesIcon,
+  LibraryIcon,
   LogOutIcon,
   SettingsIcon,
+  ShieldIcon,
   SlidersHorizontalIcon,
+  type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -45,31 +48,34 @@ interface AppShellLayoutProps extends AppShellProps {
   pageTitle: string;
 }
 
-const navigationSections = [
+interface NavigationItem {
+  title: string;
+  href: string;
+  icon: LucideIcon;
+  enabled: boolean;
+  adminOnly?: boolean;
+}
+
+interface NavigationSection {
+  title: string;
+  items: NavigationItem[];
+  adminOnly?: boolean;
+}
+
+const navigationSections: NavigationSection[] = [
   {
     title: "Workspace",
     items: [
       {
-        title: "Documents",
+        title: "Library",
         href: "/",
-        icon: FileTextIcon,
-        enabled: true,
-      },
-    ],
-  },
-  {
-    title: "Operations",
-    items: [
-      {
-        title: "Jobs",
-        href: "/jobs",
-        icon: BriefcaseBusinessIcon,
+        icon: LibraryIcon,
         enabled: true,
       },
       {
-        title: "Worker Settings",
-        href: "/worker-settings",
-        icon: SlidersHorizontalIcon,
+        title: "All documents",
+        href: "/?view=all",
+        icon: FilesIcon,
         enabled: true,
       },
     ],
@@ -85,19 +91,63 @@ const navigationSections = [
       },
     ],
   },
+  {
+    title: "Operations",
+    adminOnly: true,
+    items: [
+      {
+        title: "Jobs",
+        href: "/jobs",
+        icon: BriefcaseBusinessIcon,
+        enabled: true,
+      },
+      {
+        title: "Worker Settings",
+        href: "/worker-settings",
+        icon: SlidersHorizontalIcon,
+        enabled: true,
+      },
+      {
+        title: "Admin",
+        href: "/admin",
+        icon: ShieldIcon,
+        enabled: true,
+        adminOnly: true,
+      },
+    ],
+  },
 ];
 
-function getPageTitle(pathname: string) {
+function getPageTitle(router: ReturnType<typeof useRouter>) {
+  if (router.pathname === "/" && router.query.view === "all") {
+    return "All documents";
+  }
+
   return (
     navigationSections
       .flatMap((section) => section.items)
-      .find((item) => item.href === pathname)?.title ?? "Doclane"
+      .find((item) => item.href === router.pathname)?.title ?? "Doclane"
   );
+}
+
+function isNavigationItemActive(
+  item: NavigationItem,
+  router: ReturnType<typeof useRouter>,
+) {
+  if (item.href === "/") {
+    return router.pathname === "/" && router.query.view !== "all";
+  }
+
+  if (item.href === "/?view=all") {
+    return router.pathname === "/" && router.query.view === "all";
+  }
+
+  return router.pathname === item.href;
 }
 
 export function AppShell({ user, children }: AppShellProps) {
   const router = useRouter();
-  const pageTitle = getPageTitle(router.pathname);
+  const pageTitle = getPageTitle(router);
 
   return (
     <SidebarProvider className="h-svh min-h-0 overflow-hidden">
@@ -112,6 +162,15 @@ function AppShellLayout({ user, children, pageTitle }: AppShellLayoutProps) {
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   const logout = useLogout();
+  const visibleNavigationSections = navigationSections.map((section) => ({
+    ...section,
+    items: section.items.filter(
+      (item) => !item.adminOnly || user.role === "ADMIN",
+    ),
+  })).filter(
+    (section) =>
+      (!section.adminOnly || user.role === "ADMIN") && section.items.length > 0,
+  );
 
   const closeMobileSidebar = () => {
     if (isMobile) {
@@ -148,7 +207,7 @@ function AppShellLayout({ user, children, pageTitle }: AppShellLayoutProps) {
           </div>
         </SidebarHeader>
         <SidebarContent>
-          {navigationSections.map((section) => (
+          {visibleNavigationSections.map((section) => (
             <SidebarGroup key={section.title}>
               <SidebarGroupLabel>{section.title}</SidebarGroupLabel>
               <SidebarGroupContent>
@@ -161,7 +220,7 @@ function AppShellLayout({ user, children, pageTitle }: AppShellLayoutProps) {
                         }
                         onClick={closeMobileSidebar}
                         disabled={!item.enabled}
-                        isActive={item.enabled && router.pathname === item.href}
+                        isActive={item.enabled && isNavigationItemActive(item, router)}
                         tooltip={item.title}
                       >
                         <item.icon />
@@ -197,7 +256,17 @@ function AppShellLayout({ user, children, pageTitle }: AppShellLayoutProps) {
                   </button>
                 }
               />
-              <DropdownMenuContent side="top" align="start" className="w-52">
+              <DropdownMenuContent
+                side="top"
+                align="start"
+                positionMethod="fixed"
+                collisionAvoidance={{
+                  side: "none",
+                  align: "shift",
+                  fallbackAxisSide: "none",
+                }}
+                className="w-52 data-closed:animate-none data-open:animate-none"
+              >
                 <DropdownMenuItem variant="destructive" onClick={handleLogout}>
                   <LogOutIcon />
                   Log out
@@ -211,7 +280,9 @@ function AppShellLayout({ user, children, pageTitle }: AppShellLayoutProps) {
         <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger />
           <div className="h-4 w-px bg-border" />
-          <h1 className="min-w-0 truncate text-sm font-semibold">{pageTitle}</h1>
+          <h1 className="min-w-0 truncate text-sm font-semibold">
+            {pageTitle}
+          </h1>
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {children}

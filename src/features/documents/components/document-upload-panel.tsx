@@ -25,6 +25,7 @@ import { documentQueryKeys } from "../queries/documents.queries";
 import type { DocumentItem } from "../types/document.types";
 
 interface DocumentUploadPanelProps {
+  folderId?: string | null;
   onUploaded?: () => void;
 }
 
@@ -59,7 +60,10 @@ function formatFileSize(size: number) {
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function DocumentUploadPanel({ onUploaded }: DocumentUploadPanelProps) {
+export function DocumentUploadPanel({
+  folderId = null,
+  onUploaded,
+}: DocumentUploadPanelProps) {
   const queryClient = useQueryClient();
   const [uploads, setUploads] = useState<UploadQueueItem[]>([]);
   const [fileInputKey, setFileInputKey] = useState(0);
@@ -145,6 +149,9 @@ export function DocumentUploadPanel({ onUploaded }: DocumentUploadPanelProps) {
         queryKey: documentQueryKeys.detail(document.id),
       }),
       queryClient.invalidateQueries({
+        queryKey: documentQueryKeys.statuses(),
+      }),
+      queryClient.invalidateQueries({
         queryKey: documentQueryKeys.status(document.id),
       }),
     ]);
@@ -173,6 +180,7 @@ export function DocumentUploadPanel({ onUploaded }: DocumentUploadPanelProps) {
           const document = await uploadDocument({
             file: upload.file,
             title: upload.title.trim() || getDefaultDocumentTitle(upload.file),
+            folderId,
             onUploadProgress: (progress) => {
               updateUpload(upload.id, { progress });
             },
