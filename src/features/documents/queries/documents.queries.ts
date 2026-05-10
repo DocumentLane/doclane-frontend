@@ -57,7 +57,7 @@ export const documentQueryKeys = {
 };
 
 export function isDocumentProcessing(status: DocumentStatusResponse["status"]) {
-  return status === "UPLOAD_PENDING" || status === "METADATA_PROCESSING";
+  return status === "METADATA_PROCESSING";
 }
 
 export function isDocumentOcrProcessing(
