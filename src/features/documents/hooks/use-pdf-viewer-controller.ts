@@ -27,6 +27,14 @@ const MOBILE_VIEWER_PADDING_Y = 12;
 const DESKTOP_VIEWER_PADDING_X = 32;
 const DESKTOP_VIEWER_PADDING_Y = 24;
 const DESKTOP_BREAKPOINT_WIDTH = 768;
+const PDF_RENDERING_CANCELLED_HANDLER_KEY =
+  "__doclanePdfRenderingCancelledHandlerInstalled";
+
+declare global {
+  interface Window {
+    [PDF_RENDERING_CANCELLED_HANDLER_KEY]?: boolean;
+  }
+}
 
 interface PageChangingEvent {
   pageNumber: number;
@@ -57,6 +65,30 @@ interface UsePdfViewerControllerInput {
   documentPageCount: number | null;
   initialPageNumber: number;
   isMobile: boolean;
+}
+
+function isRenderingCancelledException(error: unknown) {
+  return (
+    error instanceof Error &&
+    (error.name === "RenderingCancelledException" ||
+      error.message.startsWith("Rendering cancelled"))
+  );
+}
+
+function installPdfRenderingCancelledHandler() {
+  if (
+    typeof window === "undefined" ||
+    window[PDF_RENDERING_CANCELLED_HANDLER_KEY]
+  ) {
+    return;
+  }
+
+  window.addEventListener("unhandledrejection", (event) => {
+    if (isRenderingCancelledException(event.reason)) {
+      event.preventDefault();
+    }
+  });
+  window[PDF_RENDERING_CANCELLED_HANDLER_KEY] = true;
 }
 
 function applyReaderViewMode(
@@ -107,6 +139,8 @@ export function usePdfViewerController({
   initialPageNumber,
   isMobile,
 }: UsePdfViewerControllerInput) {
+  installPdfRenderingCancelledHandler();
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<HTMLDivElement | null>(null);
   const viewerStateRef = useRef<ViewerState | null>(null);

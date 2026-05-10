@@ -7,6 +7,7 @@ import { readUserPreferences } from "@/features/settings/lib/user-preferences";
 import type { ReaderViewMode } from "@/features/settings/types/user-preferences.types";
 import { useMobileReaderControls } from "../hooks/use-mobile-reader-controls";
 import { useMobileReaderGestures } from "../hooks/use-mobile-reader-gestures";
+import { usePdfOutline } from "../hooks/use-pdf-outline";
 import { usePdfReaderActions } from "../hooks/use-pdf-reader-actions";
 import { usePdfViewerController } from "../hooks/use-pdf-viewer-controller";
 import { useScreenWakeLock } from "../hooks/use-screen-wake-lock";
@@ -56,6 +57,7 @@ export function PdfReaderWorkspace({
   const [isSidebarOpen, setIsSidebarOpen] = useState(
     () => readUserPreferences().readerOpenThumbnailsByDefault,
   );
+  const [sidebarWidth, setSidebarWidth] = useState(240);
   const [isNotesPanelOpen, setIsNotesPanelOpen] = useState(false);
   const [notesPanelWidth, setNotesPanelWidth] = useState(360);
   const [isToolbarVisible, setIsToolbarVisible] = useState(
@@ -89,6 +91,7 @@ export function PdfReaderWorkspace({
     initialPageNumber,
     isMobile,
   });
+  const { outlineItems, isLoadingOutline } = usePdfOutline(activePdfDocument);
   const displayedCurrentPage = isReady ? currentPage : 1;
   const isShowingPreviewPage = Boolean(previewUrl) && !isViewerReadyForDisplay;
   const { areControlsVisible: areMobileControlsVisible, revealControls } =
@@ -324,7 +327,11 @@ export function PdfReaderWorkspace({
           currentPage={currentPage}
           bookmarkedPages={bookmarkedPages}
           notedPages={notedPages}
+          outlineItems={outlineItems}
+          isLoadingOutline={isLoadingOutline}
           isOpen={isSidebarOpen}
+          width={sidebarWidth}
+          onWidthChange={setSidebarWidth}
           onPageChange={handlePageChange}
         />
         <PdfViewerStage
@@ -376,6 +383,8 @@ export function PdfReaderWorkspace({
           bookmarkedPages={bookmarkedPages}
           bookmarkedPageSet={bookmarkedPageSet}
           notedPageSet={notedPageSet}
+          outlineItems={outlineItems}
+          isLoadingOutline={isLoadingOutline}
           onOpenChange={setIsMobilePageListOpen}
           onPageChange={handleMobilePageListPageChange}
         />

@@ -9,6 +9,7 @@ import type {
   DocumentThumbnailUploadSession,
   DocumentUploadSession,
   DocumentViewResponse,
+  BulkUpdateDocumentFolderInput,
   DeleteDocumentNoteInput,
   RestartDocumentJobInput,
   SaveDocumentNoteInput,
@@ -84,6 +85,19 @@ export async function updateDocumentFolder(
   );
 
   return response.data;
+}
+
+export async function bulkUpdateDocumentFolder(
+  input: BulkUpdateDocumentFolderInput,
+): Promise<DocumentItem[]> {
+  return Promise.all(
+    input.documentIds.map((documentId) =>
+      updateDocumentFolder({
+        documentId,
+        folderId: input.folderId,
+      }),
+    ),
+  );
 }
 
 export async function reprocessDocumentOcr(

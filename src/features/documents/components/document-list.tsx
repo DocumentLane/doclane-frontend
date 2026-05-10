@@ -6,6 +6,7 @@ import {
   EllipsisVerticalIcon,
   FileTextIcon,
   FolderIcon,
+  FolderInputIcon,
   FolderOpenIcon,
   Grid2X2Icon,
   Globe2Icon,
@@ -20,7 +21,13 @@ import {
   Trash2Icon,
   UploadIcon,
 } from "lucide-react";
-import { ChangeEvent, FormEvent, useMemo, useRef, useState } from "react";
+import {
+  ChangeEvent,
+  FormEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,6 +72,7 @@ import {
 } from "@/features/folders/queries/folders.queries";
 import type { FolderItem } from "@/features/folders/types/folder.types";
 import {
+  useBulkUpdateDocumentFolderMutation,
   useDeleteDocumentMutation,
   useDownloadDocumentPdfMutation,
   useDocumentPermissionsQuery,
@@ -103,8 +111,13 @@ export function DocumentList({
 }) {
   const [viewMode, setViewMode] = useState<DocumentListViewMode>("grid");
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [isBulkMoveOpen, setIsBulkMoveOpen] = useState(false);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const foldersQuery = useFoldersQuery();
   const createFolderMutation = useCreateFolderMutation();
+  const bulkUpdateFolderMutation = useBulkUpdateDocumentFolderMutation();
   const documentFolderFilter =
     scope === "all" && !folderId ? undefined : folderId;
   const documentsQuery = useDocumentsQuery(documentFolderFilter);
@@ -121,8 +134,60 @@ export function DocumentList({
     () => documentsQuery.data?.filter((document) => document.status === "READY") ?? [],
     [documentsQuery.data],
   );
+  const visibleDocumentIds = useMemo(
+    () => new Set(readyDocuments.map((document) => document.id)),
+    [readyDocuments],
+  );
+  const selectedDocuments = useMemo(
+    () => readyDocuments.filter((document) => selectedDocumentIds.has(document.id)),
+    [readyDocuments, selectedDocumentIds],
+  );
+  const selectedDocumentCount = selectedDocuments.length;
+  const selectedFolderIds = useMemo(
+    () => new Set(selectedDocuments.map((document) => document.folderId)),
+    [selectedDocuments],
+  );
+  const initialBulkMoveFolderId =
+    selectedFolderIds.size === 1 ? selectedDocuments[0]?.folderId ?? null : null;
   const hasItems = folders.length > 0 || readyDocuments.length > 0;
   const showDocumentLocation = scope === "all" && !folderId;
+  const areAllVisibleDocumentsSelected =
+    readyDocuments.length > 0 &&
+    readyDocuments.every((document) => selectedDocumentIds.has(document.id));
+  const isBulkMoving = bulkUpdateFolderMutation.isPending;
+
+  const handleToggleDocumentSelection = (documentId: string) => {
+    setSelectedDocumentIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+
+      if (nextIds.has(documentId)) {
+        nextIds.delete(documentId);
+      } else {
+        nextIds.add(documentId);
+      }
+
+      return nextIds;
+    });
+  };
+
+  const handleToggleAllVisibleDocuments = () => {
+    setSelectedDocumentIds((currentIds) => {
+      if (areAllVisibleDocumentsSelected) {
+        return new Set(
+          [...currentIds].filter((documentId) => !visibleDocumentIds.has(documentId)),
+        );
+      }
+
+      return new Set([
+        ...currentIds,
+        ...readyDocuments.map((document) => document.id),
+      ]);
+    });
+  };
+
+  const handleClearSelection = () => {
+    setSelectedDocumentIds(new Set());
+  };
 
   return (
     <section className="space-y-4">
@@ -161,6 +226,18 @@ export function DocumentList({
         </div>
       </div>
 
+      {selectedDocumentCount > 0 ? (
+        <BulkDocumentActionBar
+          selectedCount={selectedDocumentCount}
+          totalCount={readyDocuments.length}
+          areAllSelected={areAllVisibleDocumentsSelected}
+          isMoving={isBulkMoving}
+          onSelectAll={handleToggleAllVisibleDocuments}
+          onMove={() => setIsBulkMoveOpen(true)}
+          onClear={handleClearSelection}
+        />
+      ) : null}
+
       {documentsQuery.isLoading || foldersQuery.isLoading ? (
         <DocumentListSkeleton viewMode={viewMode} />
       ) : hasItems ? (
@@ -170,6 +247,8 @@ export function DocumentList({
             documents={readyDocuments}
             getFolderName={(document) => getDocumentFolderName(document, folderNameById)}
             showLocation={showDocumentLocation}
+            selectedDocumentIds={selectedDocumentIds}
+            onToggleDocumentSelection={handleToggleDocumentSelection}
             onSelectFolder={onSelectFolder}
           />
         ) : (
@@ -178,6 +257,10 @@ export function DocumentList({
             documents={readyDocuments}
             getFolderName={(document) => getDocumentFolderName(document, folderNameById)}
             showLocation={showDocumentLocation}
+            selectedDocumentIds={selectedDocumentIds}
+            areAllDocumentsSelected={areAllVisibleDocumentsSelected}
+            onToggleDocumentSelection={handleToggleDocumentSelection}
+            onToggleAllDocuments={handleToggleAllVisibleDocuments}
             onSelectFolder={onSelectFolder}
           />
         )
@@ -207,7 +290,104 @@ export function DocumentList({
           );
         }}
       />
+      {isBulkMoveOpen ? (
+        <BulkMoveDocumentDialog
+          open={isBulkMoveOpen}
+          selectedCount={selectedDocumentCount}
+          initialFolderId={initialBulkMoveFolderId}
+          isSaving={isBulkMoving}
+          onOpenChange={setIsBulkMoveOpen}
+          onSubmit={(targetFolderId) => {
+            const documentIds = selectedDocuments.map((document) => document.id);
+
+            if (documentIds.length === 0) {
+              return;
+            }
+
+            bulkUpdateFolderMutation.mutate(
+              {
+                documentIds,
+                folderId: targetFolderId,
+              },
+              {
+                onSuccess: () => {
+                  setIsBulkMoveOpen(false);
+                  handleClearSelection();
+                  toast.success(
+                    `${documentIds.length} document${
+                      documentIds.length === 1 ? "" : "s"
+                    } moved`,
+                  );
+                },
+                onError: (error) => {
+                  toast.error("Bulk move failed", {
+                    description: getMutationErrorMessage(error),
+                  });
+                },
+              },
+            );
+          }}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function BulkDocumentActionBar({
+  selectedCount,
+  totalCount,
+  areAllSelected,
+  isMoving,
+  onSelectAll,
+  onMove,
+  onClear,
+}: {
+  selectedCount: number;
+  totalCount: number;
+  areAllSelected: boolean;
+  isMoving: boolean;
+  onSelectAll: () => void;
+  onMove: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+      <p className="font-medium">
+        {selectedCount} document{selectedCount === 1 ? "" : "s"} selected
+      </p>
+      <div className="flex flex-wrap items-center gap-1">
+        {totalCount > selectedCount || !areAllSelected ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={isMoving}
+            onClick={onSelectAll}
+          >
+            Select all visible
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isMoving}
+          onClick={onMove}
+        >
+          <FolderInputIcon />
+          Move
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={isMoving}
+          onClick={onClear}
+        >
+          Clear
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -325,12 +505,16 @@ function DocumentGrid({
   documents,
   getFolderName,
   showLocation,
+  selectedDocumentIds,
+  onToggleDocumentSelection,
   onSelectFolder,
 }: {
   folders: FolderItem[];
   documents: DocumentItem[];
   getFolderName: (document: DocumentItem) => string;
   showLocation: boolean;
+  selectedDocumentIds: Set<string>;
+  onToggleDocumentSelection: (documentId: string) => void;
   onSelectFolder: (folderId: string | null) => void;
 }) {
   return (
@@ -347,6 +531,8 @@ function DocumentGrid({
           key={document.id}
           document={document}
           locationLabel={showLocation ? getFolderName(document) : undefined}
+          isSelected={selectedDocumentIds.has(document.id)}
+          onToggleSelection={() => onToggleDocumentSelection(document.id)}
         />
       ))}
     </div>
@@ -356,12 +542,21 @@ function DocumentGrid({
 function DocumentGridCard({
   document,
   locationLabel,
+  isSelected,
+  onToggleSelection,
 }: {
   document: DocumentItem;
   locationLabel?: string;
+  isSelected: boolean;
+  onToggleSelection: () => void;
 }) {
   return (
-    <div className="group relative aspect-[3/4] w-full overflow-hidden rounded-md border bg-background transition hover:bg-muted/30 hover:shadow-sm sm:w-48 sm:flex-none sm:rounded-lg">
+    <div
+      className={cn(
+        "group relative aspect-[3/4] w-full overflow-hidden rounded-md border bg-background transition hover:bg-muted/30 hover:shadow-sm sm:w-48 sm:flex-none sm:rounded-lg",
+        isSelected && "border-primary ring-2 ring-primary/30",
+      )}
+    >
       <Link
         href={`/documents/${document.id}`}
         className="absolute inset-0 block"
@@ -382,8 +577,22 @@ function DocumentGridCard({
           </h3>
         </div>
       </Link>
+      <label
+        className={cn(
+          "absolute left-1.5 top-1.5 z-20 flex size-7 items-center justify-center rounded-md bg-background/90 opacity-0 shadow-sm backdrop-blur transition-opacity focus-within:opacity-100 group-hover:opacity-100 sm:left-2 sm:top-2",
+          isSelected && "opacity-100",
+        )}
+      >
+        <input
+          type="checkbox"
+          className="size-4 accent-primary"
+          checked={isSelected}
+          onChange={onToggleSelection}
+        />
+        <span className="sr-only">Select {document.title}</span>
+      </label>
       {document.isPublic ? (
-        <Badge className="absolute left-1.5 top-1.5 z-10 bg-background/85 text-foreground shadow-sm backdrop-blur sm:left-2 sm:top-2">
+        <Badge className="absolute left-10 top-1.5 z-10 bg-background/85 text-foreground shadow-sm backdrop-blur sm:left-11 sm:top-2">
           Public
         </Badge>
       ) : null}
@@ -433,18 +642,36 @@ function DocumentTable({
   documents,
   getFolderName,
   showLocation,
+  selectedDocumentIds,
+  areAllDocumentsSelected,
+  onToggleDocumentSelection,
+  onToggleAllDocuments,
   onSelectFolder,
 }: {
   folders: FolderItem[];
   documents: DocumentItem[];
   getFolderName: (document: DocumentItem) => string;
   showLocation: boolean;
+  selectedDocumentIds: Set<string>;
+  areAllDocumentsSelected: boolean;
+  onToggleDocumentSelection: (documentId: string) => void;
+  onToggleAllDocuments: () => void;
   onSelectFolder: (folderId: string | null) => void;
 }) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-10">
+            <input
+              type="checkbox"
+              className="size-4 accent-primary"
+              checked={areAllDocumentsSelected}
+              disabled={documents.length === 0}
+              aria-label="Select all visible documents"
+              onChange={onToggleAllDocuments}
+            />
+          </TableHead>
           <TableHead className="w-20">Preview</TableHead>
           <TableHead>Title</TableHead>
           {showLocation ? <TableHead className="w-40">Location</TableHead> : null}
@@ -455,6 +682,7 @@ function DocumentTable({
       <TableBody>
         {folders.map((folder) => (
           <TableRow key={folder.id}>
+            <TableCell />
             <TableCell>
               <div className="flex h-20 w-16 items-center justify-center rounded-md border bg-muted/40">
                 <FolderIcon className="size-7 text-muted-foreground" />
@@ -494,7 +722,23 @@ function DocumentTable({
           </TableRow>
         ))}
         {documents.map((document) => (
-          <TableRow key={document.id}>
+          <TableRow
+            key={document.id}
+            className="group"
+            data-state={selectedDocumentIds.has(document.id) ? "selected" : undefined}
+          >
+            <TableCell>
+              <input
+                type="checkbox"
+                className={cn(
+                  "size-4 accent-primary opacity-0 transition-opacity focus:opacity-100 group-hover:opacity-100",
+                  selectedDocumentIds.has(document.id) && "opacity-100",
+                )}
+                checked={selectedDocumentIds.has(document.id)}
+                aria-label={`Select ${document.title}`}
+                onChange={() => onToggleDocumentSelection(document.id)}
+              />
+            </TableCell>
             <TableCell>
               <DocumentThumbnail
                 document={document}
@@ -1208,6 +1452,77 @@ function MoveDocumentDialog({
           <DialogFooter>
             <Button type="submit" disabled={isSaving}>
               Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BulkMoveDocumentDialog({
+  open,
+  selectedCount,
+  initialFolderId,
+  isSaving,
+  onOpenChange,
+  onSubmit,
+}: {
+  open: boolean;
+  selectedCount: number;
+  initialFolderId: string | null;
+  isSaving: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (folderId: string | null) => void;
+}) {
+  const foldersQuery = useFoldersQuery();
+  const [folderId, setFolderId] = useState<string | null>(initialFolderId);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSubmit(folderId);
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Move documents</DialogTitle>
+            <DialogDescription>
+              Select the folder for {selectedCount} selected document
+              {selectedCount === 1 ? "" : "s"}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="bulk-move-documents-folder">Folder</Label>
+            <select
+              id="bulk-move-documents-folder"
+              className="h-8 w-full rounded-md border bg-background px-2 text-sm"
+              value={folderId ?? ""}
+              disabled={isSaving}
+              onChange={(event) => setFolderId(event.target.value || null)}
+            >
+              <option value="">No folder</option>
+              {(foldersQuery.data ?? []).map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSaving || selectedCount === 0}>
+              Move
             </Button>
           </DialogFooter>
         </form>

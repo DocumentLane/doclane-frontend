@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  bulkUpdateDocumentFolder,
   deleteDocument,
   deleteDocumentNote,
   getDocument,
@@ -482,6 +483,24 @@ export function useUpdateDocumentFolderMutation() {
         documentQueryKeys.detail(document.id),
         document,
       );
+      await queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() });
+    },
+  });
+}
+
+export function useBulkUpdateDocumentFolderMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkUpdateDocumentFolder,
+    onSuccess: async (documents) => {
+      documents.forEach((document) => {
+        queryClient.setQueryData<DocumentItem | undefined>(
+          documentQueryKeys.detail(document.id),
+          document,
+        );
+      });
+
       await queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() });
     },
   });

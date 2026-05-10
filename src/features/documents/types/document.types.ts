@@ -165,6 +165,11 @@ export interface UpdateDocumentFolderInput {
   folderId: string | null;
 }
 
+export interface BulkUpdateDocumentFolderInput {
+  documentIds: string[];
+  folderId: string | null;
+}
+
 export interface UploadDocumentThumbnailInput {
   documentId: string;
   file: File;
