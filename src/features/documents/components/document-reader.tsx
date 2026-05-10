@@ -2,16 +2,21 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { RefreshCcwIcon } from "lucide-react";
+import { toast } from "sonner";
 import { SeoHead } from "@/components/app/seo-head";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   documentQueryKeys,
   useDocumentQuery,
   useDocumentPreviewQuery,
+  useRestartDocumentJobMutation,
   useDocumentStatusQuery,
   useDocumentViewQuery,
 } from "../queries/documents.queries";
+import type { DocumentJobSummary } from "../types/document.types";
 
 const PdfReaderWorkspace = dynamic(
   () =>
@@ -32,6 +37,17 @@ interface DocumentReaderProps {
   documentId: string;
 }
 
+function getMutationErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Please try again.";
+}
+
+function canRestartJob(job: DocumentJobSummary) {
+  return (
+    (job.type === "PDF_METADATA" || job.type === "PDF_OCR") &&
+    (job.status === "FAILED" || job.status === "CANCELLED")
+  );
+}
+
 export function DocumentReader({ documentId }: DocumentReaderProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -39,9 +55,11 @@ export function DocumentReader({ documentId }: DocumentReaderProps) {
   const statusQuery = useDocumentStatusQuery(documentId);
   const viewQuery = useDocumentViewQuery(documentId);
   const previewQuery = useDocumentPreviewQuery(documentId);
+  const restartJobMutation = useRestartDocumentJobMutation();
   const document = documentQuery.data;
   const status = statusQuery.data?.status ?? document?.status;
   const view = viewQuery.data;
+  const restartableJob = statusQuery.data?.jobs.find(canRestartJob) ?? null;
   const metadataJobFinished = Boolean(
     statusQuery.data?.jobs.some(
       (job) =>
@@ -64,7 +82,7 @@ export function DocumentReader({ documentId }: DocumentReaderProps) {
     void router.push("/");
   };
 
-  if (documentQuery.isError || viewQuery.isError) {
+  if (documentQuery.isError || (viewQuery.isError && status !== "PROCESSING_FAILED")) {
     return (
       <>
         <SeoHead
@@ -84,7 +102,7 @@ export function DocumentReader({ documentId }: DocumentReaderProps) {
     );
   }
 
-  if (!document || !view) {
+  if (!document) {
     return (
       <>
         <SeoHead
@@ -100,6 +118,29 @@ export function DocumentReader({ documentId }: DocumentReaderProps) {
   }
 
   if (status === "PROCESSING_FAILED") {
+    const handleRestart = () => {
+      if (!restartableJob) {
+        return;
+      }
+
+      restartJobMutation.mutate(
+        {
+          documentId,
+          jobId: restartableJob.id,
+        },
+        {
+          onSuccess: () => {
+            toast.success("Task restarted");
+          },
+          onError: (error) => {
+            toast.error("Restart failed", {
+              description: getMutationErrorMessage(error),
+            });
+          },
+        },
+      );
+    };
+
     return (
       <>
         <SeoHead
@@ -114,7 +155,35 @@ export function DocumentReader({ documentId }: DocumentReaderProps) {
             <AlertDescription>
               PDF processing failed. Try processing the document again later.
             </AlertDescription>
+            {restartableJob ? (
+              <div className="mt-4">
+                <Button
+                  variant="outline"
+                  onClick={handleRestart}
+                  disabled={restartJobMutation.isPending}
+                >
+                  <RefreshCcwIcon />
+                  Restart failed task
+                </Button>
+              </div>
+            ) : null}
           </Alert>
+        </main>
+      </>
+    );
+  }
+
+  if (!view) {
+    return (
+      <>
+        <SeoHead
+          title={document.title}
+          description={`Read ${document.title} in Doclane.`}
+          imageUrl={previewQuery.data?.previewUrl ?? null}
+          noIndex
+        />
+        <main className="flex h-svh min-h-0 flex-col bg-background p-6">
+          <Skeleton className="h-full w-full" />
         </main>
       </>
     );

@@ -65,6 +65,21 @@ export interface DocumentUploadSession {
   expiresAt: string;
 }
 
+export type DocumentThumbnailContentType =
+  | "image/jpeg"
+  | "image/png"
+  | "image/webp";
+
+export interface DocumentThumbnailUploadSession {
+  uploadUrl: string;
+  documentId?: string;
+  method?: "PUT";
+  storageBucket?: string;
+  objectKey?: string;
+  contentType?: DocumentThumbnailContentType;
+  expiresAt?: string;
+}
+
 export interface DocumentJobSummary {
   id: string;
   type: DocumentJobType;
@@ -136,6 +151,23 @@ export interface UploadDocumentInput {
   file: File;
   title?: string;
   onUploadProgress?: (progressPercent: number) => void;
+}
+
+export interface UpdateDocumentTitleInput {
+  documentId: string;
+  title: string;
+}
+
+export interface UploadDocumentThumbnailInput {
+  documentId: string;
+  file: File;
+  width: number;
+  height: number;
+}
+
+export interface RestartDocumentJobInput {
+  documentId: string;
+  jobId: string;
 }
 
 export interface UpdateDocumentReadingPositionInput {

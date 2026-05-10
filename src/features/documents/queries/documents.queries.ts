@@ -14,12 +14,15 @@ import {
   listDocumentBookmarks,
   listDocumentNotes,
   reprocessDocumentOcr,
+  restartDocumentJob,
   removeDocumentBookmark,
   saveDocumentNote,
   saveDocumentBookmark,
+  updateDocumentTitle,
   updateDocumentReadingPosition,
   updateDocumentPublicAccess,
   uploadDocument,
+  uploadDocumentThumbnail,
 } from "./documents.api";
 import type {
   DocumentBookmark,
@@ -269,6 +272,31 @@ export function useReprocessDocumentOcrMutation() {
   });
 }
 
+export function useRestartDocumentJobMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: restartDocumentJob,
+    onSuccess: async (_status, input) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() }),
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.detail(input.documentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.status(input.documentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.view(input.documentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.preview(input.documentId),
+        }),
+      ]);
+    },
+  });
+}
+
 export function useDownloadDocumentPdfMutation() {
   return useMutation({
     mutationFn: getDocumentPdfBlob,
@@ -364,6 +392,21 @@ export function useUpdateDocumentReadingPositionMutation() {
   });
 }
 
+export function useUpdateDocumentTitleMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateDocumentTitle,
+    onSuccess: async (document) => {
+      queryClient.setQueryData<DocumentItem | undefined>(
+        documentQueryKeys.detail(document.id),
+        document,
+      );
+      await queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() });
+    },
+  });
+}
+
 export function useUpdateDocumentPublicAccessMutation() {
   const queryClient = useQueryClient();
 
@@ -375,6 +418,25 @@ export function useUpdateDocumentPublicAccessMutation() {
         document,
       );
       await queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() });
+    },
+  });
+}
+
+export function useUploadDocumentThumbnailMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: uploadDocumentThumbnail,
+    onSuccess: async (_session, input) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.detail(input.documentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.preview(input.documentId),
+        }),
+        queryClient.invalidateQueries({ queryKey: documentQueryKeys.lists() }),
+      ]);
     },
   });
 }

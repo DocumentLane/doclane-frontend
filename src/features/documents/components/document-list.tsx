@@ -5,23 +5,36 @@ import {
   FileTextIcon,
   Grid2X2Icon,
   Globe2Icon,
+  ImageIcon,
   LinkIcon,
   LockIcon,
+  PencilIcon,
   RefreshCcwIcon,
   Table2Icon,
   Trash2Icon,
   UploadIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -38,12 +51,20 @@ import {
   useDocumentPreviewQuery,
   useDocumentsQuery,
   useReprocessDocumentOcrMutation,
+  useUpdateDocumentTitleMutation,
   useUpdateDocumentPublicAccessMutation,
+  useUploadDocumentThumbnailMutation,
 } from "../queries/documents.queries";
 import { getPdfDownloadFileName, saveBlobAsFile } from "../lib/pdf-download";
 import type { DocumentItem } from "../types/document.types";
 
 type DocumentListViewMode = "grid" | "table";
+
+const supportedThumbnailContentTypes = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
 
 export function DocumentList() {
   const [viewMode, setViewMode] = useState<DocumentListViewMode>("grid");
@@ -224,17 +245,48 @@ function getPublicDocumentUrl(documentId: string) {
   return `${window.location.origin}/public/documents/${documentId}`;
 }
 
+function readImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve({
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("The selected image could not be read."));
+    };
+    image.src = objectUrl;
+  });
+}
+
 function DocumentActionsMenu({ document }: { document: DocumentItem }) {
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
   const deleteDocumentMutation = useDeleteDocumentMutation();
   const downloadDocumentPdfMutation = useDownloadDocumentPdfMutation();
   const reprocessOcrMutation = useReprocessDocumentOcrMutation();
+  const updateTitleMutation = useUpdateDocumentTitleMutation();
   const updatePublicAccessMutation = useUpdateDocumentPublicAccessMutation();
+  const uploadThumbnailMutation = useUploadDocumentThumbnailMutation();
   const isDeleting = deleteDocumentMutation.isPending;
   const isDownloading = downloadDocumentPdfMutation.isPending;
   const isReprocessing = reprocessOcrMutation.isPending;
+  const isRenaming = updateTitleMutation.isPending;
   const isUpdatingPublicAccess = updatePublicAccessMutation.isPending;
+  const isUploadingThumbnail = uploadThumbnailMutation.isPending;
   const isBusy =
-    isDeleting || isDownloading || isReprocessing || isUpdatingPublicAccess;
+    isDeleting ||
+    isDownloading ||
+    isReprocessing ||
+    isRenaming ||
+    isUpdatingPublicAccess ||
+    isUploadingThumbnail;
 
   const handleDelete = () => {
     const confirmed = window.confirm(`Delete "${document.title}"?`);
@@ -316,55 +368,221 @@ function DocumentActionsMenu({ document }: { document: DocumentItem }) {
     }
   };
 
+  const handleThumbnailFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!supportedThumbnailContentTypes.has(file.type)) {
+      toast.error("Thumbnail upload failed", {
+        description: "Use a JPEG, PNG, or WebP image.",
+      });
+      return;
+    }
+
+    try {
+      const dimensions = await readImageDimensions(file);
+
+      uploadThumbnailMutation.mutate(
+        {
+          documentId: document.id,
+          file,
+          width: dimensions.width,
+          height: dimensions.height,
+        },
+        {
+          onSuccess: () => {
+            toast.success("Thumbnail updated");
+          },
+          onError: (error) => {
+            toast.error("Thumbnail upload failed", {
+              description: getMutationErrorMessage(error),
+            });
+          },
+        },
+      );
+    } catch (error) {
+      toast.error("Thumbnail upload failed", {
+        description: getMutationErrorMessage(error),
+      });
+    }
+  };
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Open actions for ${document.title}`}
-            className="bg-background/85 text-foreground shadow-sm backdrop-blur hover:bg-background"
-          >
-            <EllipsisVerticalIcon />
-          </Button>
-        }
+    <>
+      <input
+        ref={thumbnailInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleThumbnailFileChange}
       />
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onClick={handleDownload}
-          disabled={isBusy}
-        >
-          <DownloadIcon />
-          Download PDF
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleTogglePublicAccess} disabled={isBusy}>
-          {document.isPublic ? <LockIcon /> : <Globe2Icon />}
-          {document.isPublic ? "Make private" : "Make public"}
-        </DropdownMenuItem>
-        {document.isPublic ? (
-          <DropdownMenuItem onClick={handleCopyPublicLink} disabled={isBusy}>
-            <LinkIcon />
-            Copy public link
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={`Open actions for ${document.title}`}
+              className="bg-background/85 text-foreground shadow-sm backdrop-blur hover:bg-background"
+            >
+              <EllipsisVerticalIcon />
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={() => setIsRenameOpen(true)}
+            disabled={isBusy}
+          >
+            <PencilIcon />
+            Rename
           </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem
-          onClick={handleReprocessOcr}
-          disabled={isBusy}
-        >
-          <RefreshCcwIcon />
-          Process OCR again
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          variant="destructive"
-          onClick={handleDelete}
-          disabled={isBusy}
-        >
-          <Trash2Icon />
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <DropdownMenuItem
+            onClick={() => thumbnailInputRef.current?.click()}
+            disabled={isBusy}
+          >
+            <ImageIcon />
+            Upload thumbnail
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleDownload} disabled={isBusy}>
+            <DownloadIcon />
+            Download PDF
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleTogglePublicAccess} disabled={isBusy}>
+            {document.isPublic ? <LockIcon /> : <Globe2Icon />}
+            {document.isPublic ? "Make private" : "Make public"}
+          </DropdownMenuItem>
+          {document.isPublic ? (
+            <DropdownMenuItem onClick={handleCopyPublicLink} disabled={isBusy}>
+              <LinkIcon />
+              Copy public link
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem
+            onClick={handleReprocessOcr}
+            disabled={isBusy}
+          >
+            <RefreshCcwIcon />
+            Process OCR again
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={isBusy}
+          >
+            <Trash2Icon />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <RenameDocumentDialog
+        document={document}
+        open={isRenameOpen}
+        isSaving={isRenaming}
+        onOpenChange={setIsRenameOpen}
+        onSubmit={(title) => {
+          updateTitleMutation.mutate(
+            {
+              documentId: document.id,
+              title,
+            },
+            {
+              onSuccess: () => {
+                setIsRenameOpen(false);
+                toast.success("Document renamed");
+              },
+              onError: (error) => {
+                toast.error("Rename failed", {
+                  description: getMutationErrorMessage(error),
+                });
+              },
+            },
+          );
+        }}
+      />
+    </>
+  );
+}
+
+function RenameDocumentDialog({
+  document,
+  open,
+  isSaving,
+  onOpenChange,
+  onSubmit,
+}: {
+  document: DocumentItem;
+  open: boolean;
+  isSaving: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (title: string) => void;
+}) {
+  const [title, setTitle] = useState(document.title);
+  const trimmedTitle = title.trim();
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!trimmedTitle) {
+      toast.error("Rename failed", {
+        description: "Document title cannot be empty.",
+      });
+      return;
+    }
+
+    onSubmit(trimmedTitle);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) {
+          setTitle(document.title);
+        }
+
+        onOpenChange(nextOpen);
+      }}
+    >
+      <DialogContent>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Rename document</DialogTitle>
+            <DialogDescription>
+              The title is trimmed before it is saved.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor={`rename-document-${document.id}`}>Title</Label>
+            <Input
+              id={`rename-document-${document.id}`}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              disabled={isSaving}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSaving}
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSaving || !trimmedTitle}>
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

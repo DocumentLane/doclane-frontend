@@ -6,12 +6,16 @@ import type {
   DocumentNote,
   DocumentPreviewResponse,
   DocumentStatusResponse,
+  DocumentThumbnailUploadSession,
   DocumentUploadSession,
   DocumentViewResponse,
   DeleteDocumentNoteInput,
+  RestartDocumentJobInput,
   SaveDocumentNoteInput,
+  UpdateDocumentTitleInput,
   UpdateDocumentPublicAccessInput,
   UpdateDocumentReadingPositionInput,
+  UploadDocumentThumbnailInput,
   UploadDocumentInput,
 } from "../types/document.types";
 
@@ -41,11 +45,34 @@ export async function deleteDocument(documentId: string): Promise<void> {
   await apiClient.delete(`/documents/${documentId}`);
 }
 
+export async function updateDocumentTitle(
+  input: UpdateDocumentTitleInput,
+): Promise<DocumentItem> {
+  const response = await apiClient.patch<DocumentItem>(
+    `/documents/${input.documentId}`,
+    {
+      title: input.title,
+    },
+  );
+
+  return response.data;
+}
+
 export async function reprocessDocumentOcr(
   documentId: string,
 ): Promise<DocumentStatusResponse> {
   const response = await apiClient.post<DocumentStatusResponse>(
     `/documents/${documentId}/ocr/reprocess`,
+  );
+
+  return response.data;
+}
+
+export async function restartDocumentJob(
+  input: RestartDocumentJobInput,
+): Promise<DocumentStatusResponse> {
+  const response = await apiClient.post<DocumentStatusResponse>(
+    `/documents/${input.documentId}/jobs/${input.jobId}/restart`,
   );
 
   return response.data;
@@ -188,6 +215,29 @@ export async function updateDocumentPublicAccess(
   );
 
   return response.data;
+}
+
+export async function uploadDocumentThumbnail(
+  input: UploadDocumentThumbnailInput,
+): Promise<DocumentThumbnailUploadSession> {
+  const sessionResponse = await apiClient.post<DocumentThumbnailUploadSession>(
+    `/documents/${input.documentId}/thumbnail/upload-session`,
+    {
+      contentType: input.file.type,
+      width: input.width,
+      height: input.height,
+      sizeBytes: input.file.size,
+    },
+  );
+  const uploadSession = sessionResponse.data;
+
+  await axios.put(uploadSession.uploadUrl, input.file, {
+    headers: {
+      "Content-Type": input.file.type,
+    },
+  });
+
+  return uploadSession;
 }
 
 export async function uploadDocument(

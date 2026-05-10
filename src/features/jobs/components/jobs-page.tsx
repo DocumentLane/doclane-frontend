@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { RefreshCcwIcon } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -21,7 +24,9 @@ import {
   isOngoingDocumentJob,
   useDocumentJobSummaries,
 } from "@/features/jobs/queries/jobs.queries";
+import { useRestartDocumentJobMutation } from "@/features/documents/queries/documents.queries";
 import type {
+  DocumentItem,
   DocumentJobStatus,
   DocumentJobSummary,
   DocumentJobType,
@@ -77,6 +82,17 @@ function formatPages(job: DocumentJobSummary): string {
   return `${job.completedPages}/${job.totalPages} · p.${job.currentPageNumber}`;
 }
 
+function getMutationErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Please try again.";
+}
+
+function canRestartJob(job: DocumentJobSummary) {
+  return (
+    (job.type === "PDF_METADATA" || job.type === "PDF_OCR") &&
+    (job.status === "FAILED" || job.status === "CANCELLED")
+  );
+}
+
 export function JobsPage() {
   const { rows, isLoading } = useDocumentJobSummaries();
   const activeJobs = rows.filter(({ job }) =>
@@ -120,51 +136,12 @@ export function JobsPage() {
                   <TableHead>Pages</TableHead>
                   <TableHead>Started</TableHead>
                   <TableHead>Done</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map(({ job, document }) => (
-                  <TableRow key={job.id}>
-                    <TableCell>
-                      <Link
-                        href={`/documents/${document.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {document.title}
-                      </Link>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {document.originalFileName}
-                      </p>
-                    </TableCell>
-                    <TableCell>{jobTypeLabels[job.type]}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusBadgeVariants[job.status]}>
-                        {jobStatusLabels[job.status]}
-                      </Badge>
-                      {job.errorMessage ? (
-                        <p className="mt-1 max-w-56 truncate text-xs text-destructive">
-                          {job.errorMessage}
-                        </p>
-                      ) : null}
-                    </TableCell>
-                    <TableCell className="min-w-36">
-                      <div className="flex items-center gap-2">
-                        <Progress value={job.progressPercent} className="w-24" />
-                        <span className="w-9 text-right text-xs tabular-nums text-muted-foreground">
-                          {job.progressPercent}%
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm tabular-nums">
-                      {formatPages(job)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDateTime(job.queuedAt)}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDateTime(job.completedAt)}
-                    </TableCell>
-                  </TableRow>
+                  <JobTableRow key={job.id} document={document} job={job} />
                 ))}
               </TableBody>
             </Table>
@@ -176,6 +153,96 @@ export function JobsPage() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+function JobTableRow({
+  document,
+  job,
+}: {
+  document: DocumentItem;
+  job: DocumentJobSummary;
+}) {
+  const restartJobMutation = useRestartDocumentJobMutation();
+  const isRestarting = restartJobMutation.isPending;
+  const isRestartable = canRestartJob(job);
+
+  const handleRestart = () => {
+    restartJobMutation.mutate(
+      {
+        documentId: document.id,
+        jobId: job.id,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Task restarted");
+        },
+        onError: (error) => {
+          toast.error("Restart failed", {
+            description: getMutationErrorMessage(error),
+          });
+        },
+      },
+    );
+  };
+
+  return (
+    <TableRow>
+      <TableCell>
+        <Link
+          href={`/documents/${document.id}`}
+          className="font-medium hover:underline"
+        >
+          {document.title}
+        </Link>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {document.originalFileName}
+        </p>
+      </TableCell>
+      <TableCell>{jobTypeLabels[job.type]}</TableCell>
+      <TableCell>
+        <Badge variant={statusBadgeVariants[job.status]}>
+          {jobStatusLabels[job.status]}
+        </Badge>
+        {job.errorMessage ? (
+          <p className="mt-1 max-w-56 truncate text-xs text-destructive">
+            {job.errorMessage}
+          </p>
+        ) : null}
+      </TableCell>
+      <TableCell className="min-w-36">
+        <div className="flex items-center gap-2">
+          <Progress value={job.progressPercent} className="w-24" />
+          <span className="w-9 text-right text-xs tabular-nums text-muted-foreground">
+            {job.progressPercent}%
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="text-sm tabular-nums">
+        {formatPages(job)}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {formatDateTime(job.queuedAt)}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {formatDateTime(job.completedAt)}
+      </TableCell>
+      <TableCell className="text-right">
+        {isRestartable ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRestart}
+            disabled={isRestarting}
+          >
+            <RefreshCcwIcon />
+            Restart
+          </Button>
+        ) : (
+          <span className="text-sm text-muted-foreground">-</span>
+        )}
+      </TableCell>
+    </TableRow>
   );
 }
 
