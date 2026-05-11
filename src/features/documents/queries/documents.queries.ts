@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  bulkRemoveDocumentPermission,
+  bulkSaveDocumentPermission,
   bulkUpdateDocumentFolder,
   deleteDocument,
   deleteDocumentNote,
@@ -7,6 +9,7 @@ import {
   getDocumentPdfBlob,
   getDocumentPreviewImage,
   listDocumentPermissions,
+  listBulkDocumentPermissions,
   getPublicDocument,
   getPublicDocumentPreviewImage,
   getPublicDocumentViewUrl,
@@ -31,6 +34,7 @@ import {
   uploadDocumentThumbnail,
 } from "./documents.api";
 import type {
+  BulkDocumentPermissionsItem,
   DocumentBookmark,
   DocumentItem,
   DocumentJobStatus,
@@ -43,6 +47,9 @@ import type {
 export const documentQueryKeys = {
   all: ["documents"] as const,
   lists: () => [...documentQueryKeys.all, "list"] as const,
+  bulkPermissions: () => [...documentQueryKeys.all, "bulk-permissions"] as const,
+  bulkPermissionSet: (documentIds: string[]) =>
+    [...documentQueryKeys.bulkPermissions(), documentIds] as const,
   list: (folderId?: string | null) =>
     [
       ...documentQueryKeys.lists(),
@@ -70,6 +77,10 @@ export const documentQueryKeys = {
   permissions: (documentId: string) =>
     [...documentQueryKeys.all, "permissions", documentId] as const,
 };
+
+function normalizeDocumentIds(documentIds: string[]) {
+  return [...new Set(documentIds)].sort();
+}
 
 export function isDocumentProcessing(status: DocumentStatusResponse["status"]) {
   return status === "METADATA_PROCESSING";
@@ -267,6 +278,20 @@ export function useDocumentPermissionsQuery(
       : [...documentQueryKeys.all, "permissions", "missing"],
     queryFn: () => listDocumentPermissions(documentId as string),
     enabled: enabled && Boolean(documentId),
+    retry: false,
+  });
+}
+
+export function useBulkDocumentPermissionsQuery(
+  documentIds: string[],
+  enabled = true,
+) {
+  const normalizedDocumentIds = normalizeDocumentIds(documentIds);
+
+  return useQuery<BulkDocumentPermissionsItem[]>({
+    queryKey: documentQueryKeys.bulkPermissionSet(normalizedDocumentIds),
+    queryFn: () => listBulkDocumentPermissions(normalizedDocumentIds),
+    enabled: enabled && normalizedDocumentIds.length > 0,
     retry: false,
   });
 }
@@ -534,6 +559,26 @@ export function useSaveDocumentPermissionMutation() {
   });
 }
 
+export function useBulkSaveDocumentPermissionMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkSaveDocumentPermission,
+    onSettled: async (_result, _error, input) => {
+      await Promise.all([
+        ...normalizeDocumentIds(input.documentIds).map((documentId) =>
+          queryClient.invalidateQueries({
+            queryKey: documentQueryKeys.permissions(documentId),
+          }),
+        ),
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.bulkPermissions(),
+        }),
+      ]);
+    },
+  });
+}
+
 export function useRemoveDocumentPermissionMutation() {
   const queryClient = useQueryClient();
 
@@ -543,6 +588,26 @@ export function useRemoveDocumentPermissionMutation() {
       await queryClient.invalidateQueries({
         queryKey: documentQueryKeys.permissions(input.resourceId),
       });
+    },
+  });
+}
+
+export function useBulkRemoveDocumentPermissionMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: bulkRemoveDocumentPermission,
+    onSettled: async (_result, _error, input) => {
+      await Promise.all([
+        ...normalizeDocumentIds(input.documentIds).map((documentId) =>
+          queryClient.invalidateQueries({
+            queryKey: documentQueryKeys.permissions(documentId),
+          }),
+        ),
+        queryClient.invalidateQueries({
+          queryKey: documentQueryKeys.bulkPermissions(),
+        }),
+      ]);
     },
   });
 }

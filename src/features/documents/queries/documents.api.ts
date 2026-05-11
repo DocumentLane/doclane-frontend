@@ -1,6 +1,9 @@
 import axios from "axios";
 import { apiClient } from "@/lib/api/http-client";
 import type {
+  BulkDocumentPermissionsItem,
+  BulkRemoveDocumentPermissionInput,
+  BulkSaveDocumentPermissionInput,
   DocumentBookmark,
   DocumentItem,
   DocumentNote,
@@ -276,6 +279,17 @@ export async function listDocumentPermissions(
   return response.data;
 }
 
+export async function listBulkDocumentPermissions(
+  documentIds: string[],
+): Promise<BulkDocumentPermissionsItem[]> {
+  return Promise.all(
+    documentIds.map(async (documentId) => ({
+      documentId,
+      permissions: await listDocumentPermissions(documentId),
+    })),
+  );
+}
+
 export async function saveDocumentPermission(
   input: SaveResourcePermissionInput,
 ): Promise<ResourcePermissionItem> {
@@ -289,11 +303,40 @@ export async function saveDocumentPermission(
   return response.data;
 }
 
+export async function bulkSaveDocumentPermission(
+  input: BulkSaveDocumentPermissionInput,
+): Promise<void> {
+  await Promise.all(
+    input.documentIds.map((documentId) =>
+      saveDocumentPermission({
+        resourceId: documentId,
+        targetType: input.targetType,
+        targetId: input.targetId,
+        permission: input.permission,
+      }),
+    ),
+  );
+}
+
 export async function removeDocumentPermission(
   input: RemoveResourcePermissionInput,
 ): Promise<void> {
   await apiClient.delete(
     `/documents/${input.resourceId}/permissions/${input.targetType}/${input.targetId}`,
+  );
+}
+
+export async function bulkRemoveDocumentPermission(
+  input: BulkRemoveDocumentPermissionInput,
+): Promise<void> {
+  await Promise.all(
+    input.documentIds.map((documentId) =>
+      removeDocumentPermission({
+        resourceId: documentId,
+        targetType: input.targetType,
+        targetId: input.targetId,
+      }),
+    ),
   );
 }
 
