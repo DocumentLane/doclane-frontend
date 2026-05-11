@@ -59,6 +59,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { ResourcePermissionsDialog } from "@/features/permissions/components/resource-permissions-dialog";
+import { BulkDocumentPermissionsDialog } from "./bulk-document-permissions-dialog";
 import {
   FolderNameDialog,
   FolderShareDialog,
@@ -111,6 +112,7 @@ export function DocumentList({
 }) {
   const [viewMode, setViewMode] = useState<DocumentListViewMode>("grid");
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [isBulkAccessOpen, setIsBulkAccessOpen] = useState(false);
   const [isBulkMoveOpen, setIsBulkMoveOpen] = useState(false);
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<Set<string>>(
     () => new Set(),
@@ -231,8 +233,9 @@ export function DocumentList({
           selectedCount={selectedDocumentCount}
           totalCount={readyDocuments.length}
           areAllSelected={areAllVisibleDocumentsSelected}
-          isMoving={isBulkMoving}
+          isBusy={isBulkMoving}
           onSelectAll={handleToggleAllVisibleDocuments}
+          onManageAccess={() => setIsBulkAccessOpen(true)}
           onMove={() => setIsBulkMoveOpen(true)}
           onClear={handleClearSelection}
         />
@@ -290,6 +293,11 @@ export function DocumentList({
           );
         }}
       />
+      <BulkDocumentPermissionsDialog
+        open={isBulkAccessOpen}
+        documents={selectedDocuments}
+        onOpenChange={setIsBulkAccessOpen}
+      />
       {isBulkMoveOpen ? (
         <BulkMoveDocumentDialog
           open={isBulkMoveOpen}
@@ -337,16 +345,18 @@ function BulkDocumentActionBar({
   selectedCount,
   totalCount,
   areAllSelected,
-  isMoving,
+  isBusy,
   onSelectAll,
+  onManageAccess,
   onMove,
   onClear,
 }: {
   selectedCount: number;
   totalCount: number;
   areAllSelected: boolean;
-  isMoving: boolean;
+  isBusy: boolean;
   onSelectAll: () => void;
+  onManageAccess: () => void;
   onMove: () => void;
   onClear: () => void;
 }) {
@@ -361,7 +371,7 @@ function BulkDocumentActionBar({
             type="button"
             variant="ghost"
             size="sm"
-            disabled={isMoving}
+            disabled={isBusy}
             onClick={onSelectAll}
           >
             Select all visible
@@ -371,7 +381,17 @@ function BulkDocumentActionBar({
           type="button"
           variant="outline"
           size="sm"
-          disabled={isMoving}
+          disabled={isBusy}
+          onClick={onManageAccess}
+        >
+          <ShieldCheckIcon />
+          Access
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isBusy}
           onClick={onMove}
         >
           <FolderInputIcon />
@@ -381,7 +401,7 @@ function BulkDocumentActionBar({
           type="button"
           variant="ghost"
           size="sm"
-          disabled={isMoving}
+          disabled={isBusy}
           onClick={onClear}
         >
           Clear

@@ -1,3 +1,9 @@
+import type {
+  DocumentPermissions,
+  RemoveResourcePermissionInput,
+  SaveResourcePermissionInput,
+} from "@/features/folders/types/folder.types";
+
 export type DocumentStatus =
   | "UPLOAD_PENDING"
   | "UPLOADED"
@@ -201,4 +207,19 @@ export interface DeleteDocumentNoteInput {
 export interface UpdateDocumentPublicAccessInput {
   documentId: string;
   isPublic: boolean;
+}
+
+export interface BulkDocumentPermissionsItem {
+  documentId: string;
+  permissions: DocumentPermissions;
+}
+
+export interface BulkSaveDocumentPermissionInput
+  extends Omit<SaveResourcePermissionInput, "resourceId"> {
+  documentIds: string[];
+}
+
+export interface BulkRemoveDocumentPermissionInput
+  extends Omit<RemoveResourcePermissionInput, "resourceId"> {
+  documentIds: string[];
 }
