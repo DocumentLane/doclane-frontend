@@ -8,6 +8,7 @@ import { useState, useSyncExternalStore } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/app/app-shell";
+import { PwaServiceWorker } from "@/components/app/pwa-service-worker";
 import { LoginPanel } from "@/features/auth/components/login-panel";
 import { useMeQuery } from "@/features/auth/queries/auth.queries";
 import { useThemeModeSync } from "@/features/settings/lib/user-preferences";
@@ -78,6 +79,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <PwaServiceWorker />
         {isAuthCallback || isPublicPage ? (
           <Component {...pageProps} />
         ) : (

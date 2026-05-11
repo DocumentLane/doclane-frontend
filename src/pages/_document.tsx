@@ -22,6 +22,14 @@ export default function Document() {
     <Html lang="en">
       <Head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="application-name" content="Doclane" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Doclane" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
         <script dangerouslySetInnerHTML={{ __html: themeInitializer }} />
       </Head>
       <body className="antialiased">
