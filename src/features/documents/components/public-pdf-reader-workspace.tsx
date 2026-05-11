@@ -18,6 +18,12 @@ import { useMobileReaderControls } from "../hooks/use-mobile-reader-controls";
 import { useMobileReaderGestures } from "../hooks/use-mobile-reader-gestures";
 import { usePdfViewerController } from "../hooks/use-pdf-viewer-controller";
 import { useScreenWakeLock } from "../hooks/use-screen-wake-lock";
+import {
+  getNextReaderPageNumber,
+  getPreviousReaderPageNumber,
+  hasNextReaderPage,
+  hasPreviousReaderPage,
+} from "../lib/page-navigation";
 import type { DocumentLinearizationStatus } from "../types/document.types";
 import { PdfViewerStage } from "./pdf-viewer-stage";
 
@@ -69,6 +75,12 @@ export function PublicPdfReaderWorkspace({
   const isShowingPreviewPage = Boolean(previewUrl) && !isViewerReadyForDisplay;
   const canShowPagePosition = (isReady || isShowingPreviewPage) && pageCount > 0;
   const shouldShowLoadingProgress = !isReady && loadingProgressPercent !== null;
+  const canGoToPreviousPage = hasPreviousReaderPage(displayedCurrentPage, viewMode);
+  const canGoToNextPage = hasNextReaderPage(
+    displayedCurrentPage,
+    pageCount,
+    viewMode,
+  );
 
   useScreenWakeLock(isReady);
   useMobileReaderGestures({
@@ -152,8 +164,12 @@ export function PublicPdfReaderWorkspace({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => handlePageChange(Math.max(1, displayedCurrentPage - 1))}
-            disabled={!isReady || displayedCurrentPage <= 1}
+            onClick={() =>
+              handlePageChange(
+                getPreviousReaderPageNumber(displayedCurrentPage, pageCount, viewMode),
+              )
+            }
+            disabled={!isReady || !canGoToPreviousPage}
             aria-label="Previous page"
           >
             <ChevronLeftIcon />
@@ -165,9 +181,11 @@ export function PublicPdfReaderWorkspace({
             variant="ghost"
             size="icon"
             onClick={() =>
-              handlePageChange(Math.min(pageCount, displayedCurrentPage + 1))
+              handlePageChange(
+                getNextReaderPageNumber(displayedCurrentPage, pageCount, viewMode),
+              )
             }
-            disabled={!isReady || displayedCurrentPage >= pageCount}
+            disabled={!isReady || !canGoToNextPage}
             aria-label="Next page"
           >
             <ChevronRightIcon />
@@ -208,8 +226,12 @@ export function PublicPdfReaderWorkspace({
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => handlePageChange(Math.max(1, displayedCurrentPage - 1))}
-            disabled={!isReady || displayedCurrentPage <= 1}
+            onClick={() =>
+              handlePageChange(
+                getPreviousReaderPageNumber(displayedCurrentPage, pageCount, viewMode),
+              )
+            }
+            disabled={!isReady || !canGoToPreviousPage}
             aria-label="Previous page"
           >
             <ChevronLeftIcon />
@@ -221,9 +243,11 @@ export function PublicPdfReaderWorkspace({
             variant="ghost"
             size="icon"
             onClick={() =>
-              handlePageChange(Math.min(pageCount, displayedCurrentPage + 1))
+              handlePageChange(
+                getNextReaderPageNumber(displayedCurrentPage, pageCount, viewMode),
+              )
             }
-            disabled={!isReady || displayedCurrentPage >= pageCount}
+            disabled={!isReady || !canGoToNextPage}
             aria-label="Next page"
           >
             <ChevronRightIcon />

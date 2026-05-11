@@ -27,6 +27,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import type { PdfViewMode } from "./pdf-reader-workspace";
+import {
+  getNextReaderPageNumber,
+  getPreviousReaderPageNumber,
+  hasNextReaderPage,
+  hasPreviousReaderPage,
+} from "../lib/page-navigation";
 import type {
   DocumentJobStatus,
   DocumentJobSummary,
@@ -243,6 +249,8 @@ export function PdfReaderToolbar({
 
   const shouldShowLoadingProgress = !isReady && loadingProgressPercent !== null;
   const canShowPagePosition = hasVisiblePage && pageCount > 0;
+  const canGoToPreviousPage = hasPreviousReaderPage(currentPage, viewMode);
+  const canGoToNextPage = hasNextReaderPage(currentPage, pageCount, viewMode);
 
   return (
     <header className="relative flex h-12 shrink-0 items-center gap-2 border-b bg-background px-2 md:h-14 md:gap-3 md:px-4">
@@ -300,8 +308,10 @@ export function PdfReaderToolbar({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-          disabled={!isReady || currentPage <= 1}
+          onClick={() =>
+            onPageChange(getPreviousReaderPageNumber(currentPage, pageCount, viewMode))
+          }
+          disabled={!isReady || !canGoToPreviousPage}
           aria-label="Previous page"
         >
           <ChevronLeftIcon />
@@ -361,8 +371,10 @@ export function PdfReaderToolbar({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => onPageChange(Math.min(pageCount, currentPage + 1))}
-          disabled={!isReady || currentPage >= pageCount}
+          onClick={() =>
+            onPageChange(getNextReaderPageNumber(currentPage, pageCount, viewMode))
+          }
+          disabled={!isReady || !canGoToNextPage}
           aria-label="Next page"
         >
           <ChevronRightIcon />

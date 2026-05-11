@@ -14,6 +14,8 @@ interface MobileReaderControlsProps {
   isBookmarked: boolean;
   hasNote: boolean;
   isNotesPanelOpen: boolean;
+  canGoToPreviousPage: boolean;
+  canGoToNextPage: boolean;
   onPreviousPage: () => void;
   onNextPage: () => void;
   onToggleBookmark: () => void;
@@ -28,6 +30,8 @@ export function MobileReaderControls({
   isBookmarked,
   hasNote,
   isNotesPanelOpen,
+  canGoToPreviousPage,
+  canGoToNextPage,
   onPreviousPage,
   onNextPage,
   onToggleBookmark,
@@ -40,7 +44,7 @@ export function MobileReaderControls({
         variant="ghost"
         size="icon"
         onClick={onPreviousPage}
-        disabled={!isReady || currentPage <= 1}
+        disabled={!isReady || !canGoToPreviousPage}
         aria-label="Previous page"
       >
         <ChevronLeftIcon />
@@ -80,7 +84,7 @@ export function MobileReaderControls({
         variant="ghost"
         size="icon"
         onClick={onNextPage}
-        disabled={!isReady || currentPage >= pageCount}
+        disabled={!isReady || !canGoToNextPage}
         aria-label="Next page"
       >
         <ChevronRightIcon />

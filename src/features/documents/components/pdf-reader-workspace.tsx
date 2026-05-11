@@ -11,6 +11,12 @@ import { usePdfOutline } from "../hooks/use-pdf-outline";
 import { usePdfReaderActions } from "../hooks/use-pdf-reader-actions";
 import { usePdfViewerController } from "../hooks/use-pdf-viewer-controller";
 import { useScreenWakeLock } from "../hooks/use-screen-wake-lock";
+import {
+  getNextReaderPageNumber,
+  getPreviousReaderPageNumber,
+  hasNextReaderPage,
+  hasPreviousReaderPage,
+} from "../lib/page-navigation";
 import { useUpdateDocumentReadingPositionMutation } from "../queries/documents.queries";
 import type {
   DocumentJobSummary,
@@ -94,6 +100,12 @@ export function PdfReaderWorkspace({
   const { outlineItems, isLoadingOutline } = usePdfOutline(activePdfDocument);
   const displayedCurrentPage = isReady ? currentPage : 1;
   const isShowingPreviewPage = Boolean(previewUrl) && !isViewerReadyForDisplay;
+  const canGoToPreviousPage = hasPreviousReaderPage(displayedCurrentPage, viewMode);
+  const canGoToNextPage = hasNextReaderPage(
+    displayedCurrentPage,
+    pageCount,
+    viewMode,
+  );
   const { areControlsVisible: areMobileControlsVisible, revealControls } =
     useMobileReaderControls({
       isMobile,
@@ -185,17 +197,15 @@ export function PdfReaderWorkspace({
 
       if (event.key === "ArrowLeft" || event.key === "PageUp") {
         event.preventDefault();
-        const pageStep = viewMode === "two-pages" ? 2 : 1;
-
-        handlePageChange(Math.max(1, currentPage - pageStep));
+        handlePageChange(
+          getPreviousReaderPageNumber(currentPage, pageCount, viewMode),
+        );
         return;
       }
 
       if (event.key === "ArrowRight" || event.key === "PageDown") {
         event.preventDefault();
-        const pageStep = viewMode === "two-pages" ? 2 : 1;
-
-        handlePageChange(Math.min(pageCount, currentPage + pageStep));
+        handlePageChange(getNextReaderPageNumber(currentPage, pageCount, viewMode));
         return;
       }
 
@@ -366,9 +376,17 @@ export function PdfReaderWorkspace({
           isBookmarked={bookmarkedPageSet.has(displayedCurrentPage)}
           hasNote={notedPageSet.has(displayedCurrentPage)}
           isNotesPanelOpen={isNotesPanelOpen}
-          onPreviousPage={() => handlePageChange(Math.max(1, displayedCurrentPage - 1))}
+          canGoToPreviousPage={canGoToPreviousPage}
+          canGoToNextPage={canGoToNextPage}
+          onPreviousPage={() =>
+            handlePageChange(
+              getPreviousReaderPageNumber(displayedCurrentPage, pageCount, viewMode),
+            )
+          }
           onNextPage={() =>
-            handlePageChange(Math.min(pageCount, displayedCurrentPage + 1))
+            handlePageChange(
+              getNextReaderPageNumber(displayedCurrentPage, pageCount, viewMode),
+            )
           }
           onToggleBookmark={toggleCurrentPageBookmark}
           onToggleNotesPanel={() => setIsNotesPanelOpen((value) => !value)}
